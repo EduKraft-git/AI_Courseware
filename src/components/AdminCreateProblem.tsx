@@ -136,19 +136,27 @@ export const AdminCreateProblem: React.FC<AdminCreateProblemProps> = ({ onBack, 
 [요구사항]
 1. 초등학교 ${grade} 학생의 인지 발달 수준과 2022 개정 수학과 교육과정 성취기준에 알맞은 난이도로 출제하세요.
 2. 학생들이 키보드로 손쉽게 입력할 수 있는 답안 형식을 고려하세요. (분수는 '3/2' 또는 '1 1/2' 형태 허용, 소수는 소수점 표기)
-3. hint(힌트)에는 절대로 정답이나 직접적인 수식을 노출하지 말고, 학생이 스스로 생각할 수 있는 핵심 개념이나 풀이 방향에 대한 힌트만 적어주세요.
-4. explanation(문제 풀이)에는 문제를 틀린 학생이 복습할 수 있도록 단계별 상세한 풀이 과정과 최종 정답 도출 식을 친절하게 기술해 주세요.
-5. 반드시 아래 JSON 형식으로만 응답하고, 마크다운 코드블록(\`\`\`json)은 포함해도 되지만 추가적인 텍스트 설명은 붙이지 마세요.
+3. ⚠️ [중요: 입력 형식 안내(answerGuide)] 
+   - answerGuide에는 **절대로 해당 문제의 실제 정답이나 정답 숫자를 예시로 넣지 마세요!**
+   - 학생에게 정답이 노출되지 않도록, 오직 일반적인 입력 형태와 형식만 안내해야 합니다.
+   - 예시 지침:
+     * 자연수: "자연수로 입력하세요."
+     * 분수: "기약분수로 입력하세요 (예: 1/2 형태)" 또는 "가분수 또는 대분수로 입력하세요 (예: 3/2 또는 1 1/2 형태)"
+     * 소수: "소수로 입력하세요 (예: 0.5 형태)"
+     * 단위: "단위를 제외하고 숫자만 입력하세요."
+4. hint(힌트)에는 절대로 정답이나 직접적인 수식을 노출하지 말고, 학생이 스스로 생각할 수 있는 핵심 개념이나 풀이 방향에 대한 힌트만 적어주세요.
+5. explanation(문제 풀이)에는 문제를 틀린 학생이 복습할 수 있도록 단계별 상세한 풀이 과정과 최종 정답 도출 식을 친절하게 기술해 주세요.
+6. 반드시 아래 JSON 형식으로만 응답하고, 마크다운 코드블록(\`\`\`json)은 포함해도 되지만 추가적인 텍스트 설명은 붙이지 마세요.
 
 JSON 응답 스키마:
 [
   {
     "id": 1,
     "questionText": "문제 내용 지문 (예: 5/6 ÷ 2/3의 몫을 기약분수로 구하세요.)",
-    "answers": ["5/4", "1 1/4", "1.25"],
-    "answerGuide": "기약분수 또는 대분수로 입력하세요 (예: 5/4 또는 1 1/4)",
+    "answers": ["5/4", "1 1/4"],
+    "answerGuide": "기약분수 또는 대분수로 입력하세요 (예: 3/2 또는 1 1/2 형태)",
     "hint": "분수의 나눗셈은 나누는 분수의 분자와 분모를 바꾼 뒤 곱셈으로 바꾸어 계산할 수 있습니다.",
-    "explanation": "5/6 ÷ 2/3 = 5/6 × 3/2 = (5×3)/(6×2) = 15/12 = 5/4입니다."
+    "explanation": "5/6 ÷ 2/3 = 5/6 × 3/2 = (5×3)/(6×2) = 15/12 = 5/4 = 1 1/4입니다."
   }
 ]
 `;
@@ -258,15 +266,44 @@ JSON 응답 스키마:
         throw new Error('문제가 정상적으로 생성되지 않았습니다.');
       }
 
+      // 🌟 입력 형식 안내(answerGuide)에서 실제 정답 유출을 원천 방지하는 헬퍼 함수
+      const sanitizeAnswerGuide = (guide: string, answers: string[]): string => {
+        if (!guide) return '정답을 알맞은 형식으로 입력하세요.';
+        let sanitized = guide;
+        for (const ans of answers) {
+          const cleanAns = String(ans).trim();
+          if (!cleanAns) continue;
+          const escaped = cleanAns.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const regex = new RegExp(escaped, 'g');
+          if (regex.test(sanitized)) {
+            if (cleanAns.includes('/') && cleanAns.includes(' ')) {
+              sanitized = sanitized.replace(regex, '1 1/2');
+            } else if (cleanAns.includes('/')) {
+              sanitized = sanitized.replace(regex, '1/2');
+            } else if (cleanAns.includes('.')) {
+              sanitized = sanitized.replace(regex, '0.5');
+            } else if (/^\d+$/.test(cleanAns)) {
+              sanitized = sanitized.replace(regex, '10');
+            } else {
+              sanitized = sanitized.replace(regex, '...');
+            }
+          }
+        }
+        return sanitized;
+      };
+
       // ID 재정렬 및 누락 필드 방어
-      const formatted = parsedQuestions.map((q, idx) => ({
-        id: idx + 1,
-        questionText: q.questionText || `문제 ${idx + 1}`,
-        answers: Array.isArray(q.answers) && q.answers.length > 0 ? q.answers.map(a => String(a).trim()) : ['0'],
-        answerGuide: q.answerGuide || '정답을 입력하세요',
-        hint: q.hint || '문제를 차근차근 다시 읽어보세요.',
-        explanation: q.explanation || '차근차근 계산하여 정답을 도출합니다.'
-      }));
+      const formatted = parsedQuestions.map((q, idx) => {
+        const answers = Array.isArray(q.answers) && q.answers.length > 0 ? q.answers.map(a => String(a).trim()) : ['0'];
+        return {
+          id: idx + 1,
+          questionText: q.questionText || `문제 ${idx + 1}`,
+          answers,
+          answerGuide: sanitizeAnswerGuide(q.answerGuide || '정답을 입력하세요', answers),
+          hint: q.hint || '문제를 차근차근 다시 읽어보세요.',
+          explanation: q.explanation || '차근차근 계산하여 정답을 도출합니다.'
+        };
+      });
 
       setPreviewQuestions(formatted);
       setIsGenerated(true);

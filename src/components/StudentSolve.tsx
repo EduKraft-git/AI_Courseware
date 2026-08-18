@@ -2,6 +2,34 @@ import React, { useState, useEffect, useRef } from 'react';
 import { getProblem, getStudentSubmissions, submitAnswer, markProblemStarted, updateStudentActiveStatus, setStudentOffline } from '../db';
 import { Student, Problem, Question, Submission } from '../types';
 
+// 🌟 입력 형식 안내(answerGuide)에서 실제 문제의 정답이 노출되지 않도록 범용 형식으로 정제하는 함수
+const sanitizeAnswerGuide = (guide?: string, answers?: string[]): string => {
+  if (!guide) return '정답을 알맞은 형식으로 입력하세요.';
+  let sanitized = guide;
+  if (answers && answers.length > 0) {
+    for (const ans of answers) {
+      const cleanAns = String(ans).trim();
+      if (!cleanAns) continue;
+      const escaped = cleanAns.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(escaped, 'g');
+      if (regex.test(sanitized)) {
+        if (cleanAns.includes('/') && cleanAns.includes(' ')) {
+          sanitized = sanitized.replace(regex, '1 1/2');
+        } else if (cleanAns.includes('/')) {
+          sanitized = sanitized.replace(regex, '1/2');
+        } else if (cleanAns.includes('.')) {
+          sanitized = sanitized.replace(regex, '0.5');
+        } else if (/^\d+$/.test(cleanAns)) {
+          sanitized = sanitized.replace(regex, '10');
+        } else {
+          sanitized = sanitized.replace(regex, '○');
+        }
+      }
+    }
+  }
+  return sanitized;
+};
+
 interface StudentSolveProps {
   student: Student;
   date: string; // 문제를 풀 날짜
@@ -409,7 +437,7 @@ export const StudentSolve: React.FC<StudentSolveProps> = ({
               </h2>
             </div>
 
-            {/* 정답 가이드 안내 */}
+            {/* 정답 가이드 안내 (정답 유출 완벽 차단 및 형식만 안내) */}
             <div style={{
               padding: '0.75rem 1rem',
               backgroundColor: 'rgba(0,0,0,0.02)',
@@ -420,7 +448,7 @@ export const StudentSolve: React.FC<StudentSolveProps> = ({
               marginBottom: '1rem',
               lineHeight: '1.4'
             }}>
-              <strong>입력 형식 안내:</strong> {questions[currentIndex].answerGuide}
+              <strong>입력 형식 안내:</strong> {sanitizeAnswerGuide(questions[currentIndex].answerGuide, questions[currentIndex].answers)}
             </div>
           </div>
 
