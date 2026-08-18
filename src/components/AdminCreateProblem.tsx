@@ -1,0 +1,604 @@
+import React, { useState, useEffect } from 'react';
+import { saveProblem, getProblem, getDailyProblems, getAllClasses } from '../db';
+import { Problem, Question, SchoolClass } from '../types';
+
+interface AdminCreateProblemProps {
+  onBack: () => void;
+  initialDate?: string;
+  initialProblemId?: string | null; // 수정 모드 진입 시 특정 문제 꾸러미 고유 ID 전달용
+}
+
+export const AdminCreateProblem: React.FC<AdminCreateProblemProps> = ({ onBack, initialDate, initialProblemId }) => {
+  const [selectedDate, setSelectedDate] = useState('');
+  const [problemId, setProblemId] = useState<string | null>(null); // 현재 편집 중인 고유 문제 ID
+  const [grade, setGrade] = useState('6학년');
+  const [chapter, setChapter] = useState('분수의 나눗셈');
+  const [questionsCount, setQuestionsCount] = useState(10);
+  const [problemType, setProblemType] = useState('단순계산문제');
+  const [targetClasses, setTargetClasses] = useState<string[]>(['1반']); // 배포 대상 반 목록
+  const [classList, setClassList] = useState<SchoolClass[]>([]);
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [previewQuestions, setPreviewQuestions] = useState<Question[]>([]);
+  const [isGenerated, setIsGenerated] = useState(false);
+  const [inspectIndex, setInspectIndex] = useState(0);
+
+  // 프리뷰 문항 수 변동 시 검수 인덱스 범위 방어
+  useEffect(() => {
+    if (inspectIndex >= previewQuestions.length) {
+      setInspectIndex(Math.max(0, previewQuestions.length - 1));
+    }
+  }, [previewQuestions.length]);
+
+  // 한국 시간 기준 YYYY-MM-DD
+  const getTodayString = () => {
+    const now = new Date();
+    const offset = now.getTimezoneOffset() * 60000;
+    return new Date(now.getTime() - offset).toISOString().split('T')[0];
+  };
+
+  useEffect(() => {
+    setSelectedDate(initialDate || getTodayString());
+    setProblemId(initialProblemId || null);
+  }, [initialDate, initialProblemId]);
+
+  // 🌟 컴포넌트 마운트 시 동적 학급 목록 로딩
+  useEffect(() => {
+    const fetchClasses = async () => {
+      try {
+        const list = await getAllClasses();
+        setClassList(list);
+        if (list.length > 0) {
+          setTargetClasses([list[0].name]);
+        }
+      } catch (e) {
+        console.error('문제 배포 반 로드 에러:', e);
+      }
+    };
+    fetchClasses();
+  }, []);
+
+  // 학년별 기본 단원 목록 매핑
+  const chapterOptions: { [key: string]: string[] } = {
+    '3학년': ['세 자리 수의 덧셈과 뺄셈', '나눗셈', '곱셈', '분수와 소수', '길이와 시간'],
+    '4학년': ['큰 수', '각도', '곱셈과 나눗셈', '평면도형의 이동', '막대그래프', '규칙 찾기'],
+    '5학년': ['자연수의 혼합 계산', '약수와 배수', '약분과 통분', '분수의 덧셈과 뺄셈', '다각형의 둘레와 넓이', '분수의 곱셈', '소수의 곱셈'],
+    '6학년': ['분수의 나눗셈', '각기둥과 각뿔', '소수의 나눗셈', '비와 비율', '여러 가지 그래프', '직육면체의 부피와 겉넓이', '비례식과 비례배분', '원개의 넓이']
+  };
+
+  // 학년 변경 시 단원 자동 동기화
+  useEffect(() => {
+    const options = chapterOptions[grade];
+    if (options && options.length > 0) {
+      if (!options.includes(chapter)) {
+        setChapter(options[0]);
+      }
+    }
+  }, [grade]);
+
+  // 선택된 날짜에 이미 배포된 문제가 있다면 자동으로 불러오기
+  useEffect(() => {
+    if (!selectedDate) return;
+
+    const fetchExistingProblem = async () => {
+      try {
+        setIsLoading(true);
+        const targetId = problemId || selectedDate;
+        const existing = await getProblem(targetId);
+        if (existing) {
+          setProblemId(existing.id);
+          setGrade(existing.grade);
+          setChapter(existing.chapter);
+          setProblemType(existing.type);
+          setQuestionsCount(existing.questions.length);
+          setPreviewQuestions(existing.questions);
+          if (existing.targetClasses) {
+            setTargetClasses(existing.targetClasses);
+          }
+          setIsGenerated(true);
+        } else {
+          setPreviewQuestions([]);
+          setIsGenerated(false);
+        }
+      } catch (err) {
+        console.error('문제 로드 에러:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchExistingProblem();
+  }, [selectedDate, problemId]);
+
+  // Gemini API를 직접 호출하여 수학 문제 생성
+  const handleGenerateProblems = async () => {
+    if (!selectedDate) {
+      alert('배포할 날짜를 선택해 주세요.');
+      return;
+    }
+    if (targetClasses.length === 0) {
+      alert('최소 1개 이상의 배포 대상 학급(반)을 선택해 주세요.');
+      return;
+    }
+
+    const apiKey = localStorage.getItem('temp_gemini_api_key') || import.meta.env.VITE_GEMINI_API_KEY;
+    if (!apiKey || apiKey === 'YOUR_GEMINI_API_KEY_HERE') {
+      alert('Gemini API 키가 설정되지 않았습니다. 관리자 대시보드 하단의 긴급 키 설정을 이용하시거나 .env 파일에 VITE_GEMINI_API_KEY를 입력해 주세요.');
+      return;
+    }
+
+    setIsLoading(true);
+
+    const prompt = `
+당신은 대한민국 초등학교 수학 교육과정 전문가입니다.
+초등학교 ${grade} 수학 단원 [${chapter}]에 대한 [${problemType}] 아침활동 10분 수학 문제 ${questionsCount}문항을 생성해 주세요.
+
+[요구사항]
+1. 초등학교 ${grade} 학생의 인지 발달 수준과 2022 개정 수학과 교육과정 성취기준에 알맞은 난이도로 출제하세요.
+2. 학생들이 키보드로 손쉽게 입력할 수 있는 답안 형식을 고려하세요. (분수는 '3/2' 또는 '1 1/2' 형태 허용, 소수는 소수점 표기)
+3. hint(힌트)에는 절대로 정답이나 직접적인 수식을 노출하지 말고, 학생이 스스로 생각할 수 있는 핵심 개념이나 풀이 방향에 대한 힌트만 적어주세요.
+4. explanation(문제 풀이)에는 문제를 틀린 학생이 복습할 수 있도록 단계별 상세한 풀이 과정과 최종 정답 도출 식을 친절하게 기술해 주세요.
+5. 반드시 아래 JSON 형식으로만 응답하고, 마크다운 코드블록(\`\`\`json)은 포함해도 되지만 추가적인 텍스트 설명은 붙이지 마세요.
+
+JSON 응답 스키마:
+[
+  {
+    "id": 1,
+    "questionText": "문제 내용 지문 (예: 5/6 ÷ 2/3의 몫을 기약분수로 구하세요.)",
+    "answers": ["5/4", "1 1/4", "1.25"],
+    "answerGuide": "기약분수 또는 대분수로 입력하세요 (예: 5/4 또는 1 1/4)",
+    "hint": "분수의 나눗셈은 나누는 분수의 분자와 분모를 바꾼 뒤 곱셈으로 바꾸어 계산할 수 있습니다.",
+    "explanation": "5/6 ÷ 2/3 = 5/6 × 3/2 = (5×3)/(6×2) = 15/12 = 5/4입니다."
+  }
+]
+`;
+
+    try {
+      let response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.2,
+              responseMimeType: 'application/json'
+            }
+          }),
+        }
+      );
+
+      // 만약 모델 엔드포인트 404 등 실패 시 호환성을 위해 1.5-flash로 자동 폴백
+      if (!response.ok) {
+        response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: {
+                temperature: 0.2,
+                responseMimeType: 'application/json'
+              }
+            }),
+          }
+        );
+      }
+
+      if (!response.ok) {
+        throw new Error(`Gemini API 요청 실패: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
+      
+      // 🌟 견고한 다단계 JSON 파싱 헬퍼 함수
+      const parseSafeQuestionsJson = (text: string): Question[] => {
+        let cleaned = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+
+        // 가장 바깥쪽 대괄호 [ ... ] 영역만 정밀 슬라이스
+        const start = cleaned.indexOf('[');
+        const end = cleaned.lastIndexOf(']');
+        if (start !== -1 && end !== -1 && end > start) {
+          cleaned = cleaned.substring(start, end + 1);
+        }
+
+        // 1차 표준 파싱
+        try {
+          const res = JSON.parse(cleaned);
+          if (Array.isArray(res)) return res;
+        } catch (e1) {
+          console.warn('1차 표준 JSON 파싱 실패, 자동 정제 복구 시도:', e1);
+        }
+
+        // 2차 정제 파싱: 후행 쉼표(trailing comma) 및 제어문자 정제
+        try {
+          const sanitized = cleaned
+            .replace(/,\s*([\]}])/g, '$1') // 쉼표 뒤 닫는 괄호 제거
+            .replace(/[\u0000-\u0009\u000B\u000C\u000E-\u001F]/g, ''); // 불필요 제어문자 제거
+          const res = JSON.parse(sanitized);
+          if (Array.isArray(res)) return res;
+        } catch (e2) {
+          console.warn('2차 정제 JSON 파싱 실패, 개별 객체 정규식 추출 시도:', e2);
+        }
+
+        // 3차 복구: 개별 문제 객체 { ... } 단위 정규식 추출
+        try {
+          const objectMatches = cleaned.match(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g);
+          if (objectMatches && objectMatches.length > 0) {
+            const recovered: any[] = [];
+            for (const objStr of objectMatches) {
+              try {
+                const cleanedObj = objStr.replace(/,\s*([\]}])/g, '$1');
+                recovered.push(JSON.parse(cleanedObj));
+              } catch (_) {}
+            }
+            if (recovered.length > 0) return recovered;
+          }
+        } catch (e3) {}
+
+        throw new Error('생성된 문제의 형식이 올바르지 않습니다.');
+      };
+
+      let parsedQuestions: Question[] = [];
+      try {
+        parsedQuestions = parseSafeQuestionsJson(rawText);
+      } catch (parseError) {
+        console.error('JSON 파싱 실패 원본:', rawText);
+        throw new Error('생성된 문제의 형식이 올바르지 않습니다. 다시 시도해 주세요.');
+      }
+
+      if (!Array.isArray(parsedQuestions) || parsedQuestions.length === 0) {
+        throw new Error('문제가 정상적으로 생성되지 않았습니다.');
+      }
+
+      // ID 재정렬 및 누락 필드 방어
+      const formatted = parsedQuestions.map((q, idx) => ({
+        id: idx + 1,
+        questionText: q.questionText || `문제 ${idx + 1}`,
+        answers: Array.isArray(q.answers) && q.answers.length > 0 ? q.answers.map(a => String(a).trim()) : ['0'],
+        answerGuide: q.answerGuide || '정답을 입력하세요',
+        hint: q.hint || '문제를 차근차근 다시 읽어보세요.',
+        explanation: q.explanation || '차근차근 계산하여 정답을 도출합니다.'
+      }));
+
+      setPreviewQuestions(formatted);
+      setIsGenerated(true);
+      setInspectIndex(0);
+    } catch (err: any) {
+      console.error(err);
+      alert(`문제 생성 중 오류가 발생했습니다: ${err.message || err}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 문제 검수 중 내용 직접 수정 핸들러
+  const handleQuestionChange = (index: number, field: keyof Question, value: any) => {
+    const updated = [...previewQuestions];
+    if (field === 'answers') {
+      updated[index] = {
+        ...updated[index],
+        answers: typeof value === 'string' ? value.split(',').map((s) => s.trim()) : value
+      };
+    } else {
+      updated[index] = {
+        ...updated[index],
+        [field]: value
+      };
+    }
+    setPreviewQuestions(updated);
+  };
+
+  // 최종 저장 및 배포
+  const handleSaveAndPublish = async () => {
+    if (!selectedDate) {
+      alert('배포할 날짜를 선택해 주세요.');
+      return;
+    }
+    if (previewQuestions.length === 0) {
+      alert('배포할 문제가 없습니다.');
+      return;
+    }
+    if (targetClasses.length === 0) {
+      alert('최소 1개 이상의 배포 대상 학급(반)을 선택해 주세요.');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      
+      const finalProblemId = problemId || `${selectedDate}_${Date.now()}`;
+
+      const problemData: Problem = {
+        id: finalProblemId,
+        date: selectedDate,
+        grade,
+        chapter,
+        type: problemType,
+        questions: previewQuestions,
+        targetClasses
+      };
+
+      await saveProblem(problemData);
+      alert(`[${selectedDate}] ${grade} ${chapter} (${targetClasses.join(', ')}) 문제가 성공적으로 배포되었습니다!`);
+      onBack();
+    } catch (err) {
+      console.error('저장 에러:', err);
+      alert('문제 저장 및 배포에 실패했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="app-container">
+      {/* 헤더 네비게이션 */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+        <div>
+          <h2>AI 아침활동 수학 문제 출제 및 검수</h2>
+          <p style={{ marginTop: '0.25rem' }}>Gemini AI를 활용하여 학년과 단원에 꼭 맞는 10분 아침활동 문제를 자동 생성합니다.</p>
+        </div>
+        <button onClick={onBack} className="btn btn-secondary">
+          ← 대시보드로 돌아가기
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2" style={{ gap: '2rem', alignItems: 'start' }}>
+        {/* 왼쪽: 출제 조건 설정 */}
+        <div className="card" style={{ padding: '1.5rem' }}>
+          <h3 style={{ marginBottom: '1.5rem' }}>출제 조건 설정</h3>
+
+          <div className="form-group">
+            <label className="form-label">배포 날짜</label>
+            <input 
+              type="date" 
+              className="input-control" 
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+            />
+          </div>
+
+          <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+            <label className="form-label">배포 대상 학급(반)</label>
+            <div style={{ 
+              display: 'flex', 
+              flexWrap: 'wrap', 
+              gap: '1rem', 
+              padding: '0.65rem 0.85rem', 
+              border: '1px solid var(--border-color)', 
+              borderRadius: '10px', 
+              backgroundColor: '#fafafa' 
+            }}>
+              {classList.map((c) => {
+                const clsName = c.name;
+                const isChecked = targetClasses.includes(clsName);
+                return (
+                  <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500 }}>
+                    <input
+                      type="checkbox"
+                      value={clsName}
+                      checked={isChecked}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setTargetClasses(prev => [...prev, clsName]);
+                        } else {
+                          setTargetClasses(prev => prev.filter(item => item !== clsName));
+                        }
+                      }}
+                      style={{ cursor: 'pointer', width: '15px', height: '15px' }}
+                    />
+                    {clsName}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">대상 학년</label>
+            <select 
+              className="input-control" 
+              value={grade}
+              onChange={(e) => setGrade(e.target.value)}
+            >
+              <option value="3학년">3학년</option>
+              <option value="4학년">4학년</option>
+              <option value="5학년">5학년</option>
+              <option value="6학년">6학년</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">수학 단원</label>
+            <select 
+              className="input-control" 
+              value={chapter}
+              onChange={(e) => setChapter(e.target.value)}
+            >
+              {chapterOptions[grade]?.map((ch) => (
+                <option key={ch} value={ch}>{ch}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">문제 개수</label>
+            <select 
+              className="input-control" 
+              value={questionsCount}
+              onChange={(e) => setQuestionsCount(Number(e.target.value))}
+            >
+              <option value={5}>5문제</option>
+              <option value={10}>10문제</option>
+              <option value={15}>15문제</option>
+              <option value={20}>20문제</option>
+            </select>
+          </div>
+
+          <div className="form-group" style={{ marginBottom: '2rem' }}>
+            <label className="form-label">문제 유형</label>
+            <select 
+              className="input-control" 
+              value={problemType}
+              onChange={(e) => setProblemType(e.target.value)}
+            >
+              <option value="단순계산문제">단순계산문제 (연산 중심)</option>
+              <option value="문장제 서술형 문제">문장제 서술형 문제 (이해 중심)</option>
+              <option value="실생활 응용 문제">실생활 응용 문제 (활용 중심)</option>
+            </select>
+          </div>
+
+          <button 
+            onClick={handleGenerateProblems} 
+            className="btn btn-primary btn-point"
+            style={{ width: '100%', padding: '0.8rem' }}
+            disabled={isLoading || !selectedDate}
+          >
+            {isLoading ? 'Gemini AI 문제 생성 중...' : 'AI 문제 생성하기'}
+          </button>
+        </div>
+
+        {/* 오른쪽: 생성된 문제 목록 프리뷰 및 최종 검수 */}
+        <div className="card" style={{ padding: '1.5rem', minHeight: '400px' }}>
+          <h3 style={{ marginBottom: '0.5rem' }}>생성 문제 검수 및 배포</h3>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
+            AI가 생성한 문제를 검토하고 내용을 필요에 맞게 즉시 수정할 수 있습니다.
+          </p>
+
+          {isLoading ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '300px' }}>
+              <div style={{
+                border: '4px solid rgba(79, 70, 229, 0.1)',
+                borderLeft: '4px solid var(--color-point)',
+                borderRadius: '50%',
+                width: '36px',
+                height: '36px',
+                animation: 'spin 1s linear infinite',
+                marginBottom: '1rem'
+              }}></div>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                초등학교 교육 성취기준에 맞춰 수학 문제 세트를 구성 중입니다...
+              </p>
+            </div>
+          ) : isGenerated && previewQuestions.length > 0 ? (
+            <div>
+              {/* 이전/다음 버튼을 동반한 슬라이더 조작 헤더 */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <button
+                  onClick={() => setInspectIndex(prev => Math.max(0, prev - 1))}
+                  disabled={inspectIndex === 0}
+                  className="btn btn-secondary"
+                  style={{ padding: '0.35rem 0.8rem', fontSize: '0.8rem' }}
+                >
+                  ◀ 이전 문제
+                </button>
+                <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                  문제 {inspectIndex + 1} / {previewQuestions.length}
+                </span>
+                <button
+                  onClick={() => setInspectIndex(prev => Math.min(previewQuestions.length - 1, prev + 1))}
+                  disabled={inspectIndex === previewQuestions.length - 1}
+                  className="btn btn-secondary"
+                  style={{ padding: '0.35rem 0.8rem', fontSize: '0.8rem' }}
+                >
+                  다음 문제 ▶
+                </button>
+              </div>
+
+              {/* 현재 검수 중인 문제 편집 박스 */}
+              {previewQuestions[inspectIndex] && (
+                <div style={{
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '12px',
+                  padding: '1.25rem',
+                  backgroundColor: '#ffffff',
+                  marginBottom: '1.5rem'
+                }}>
+                  <div className="form-group">
+                    <label className="form-label" style={{ fontSize: '0.85rem' }}>문제 발문 (지문)</label>
+                    <textarea
+                      rows={3}
+                      className="input-control"
+                      value={previewQuestions[inspectIndex].questionText}
+                      onChange={(e) => handleQuestionChange(inspectIndex, 'questionText', e.target.value)}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label" style={{ fontSize: '0.85rem' }}>정답 허용 목록 (쉼표로 구분)</label>
+                    <input
+                      type="text"
+                      className="input-control"
+                      value={previewQuestions[inspectIndex].answers.join(', ')}
+                      onChange={(e) => handleQuestionChange(inspectIndex, 'answers', e.target.value)}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label" style={{ fontSize: '0.85rem' }}>입력 형식 안내</label>
+                    <input
+                      type="text"
+                      className="input-control"
+                      value={previewQuestions[inspectIndex].answerGuide}
+                      onChange={(e) => handleQuestionChange(inspectIndex, 'answerGuide', e.target.value)}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label" style={{ fontSize: '0.85rem' }}>풀이 힌트 (오답 시 1차 노출, 정답 미포함)</label>
+                    <input
+                      type="text"
+                      className="input-control"
+                      value={previewQuestions[inspectIndex].hint}
+                      onChange={(e) => handleQuestionChange(inspectIndex, 'hint', e.target.value)}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label" style={{ fontSize: '0.85rem' }}>문제 풀이 (오답 복습용 상세 풀이 과정)</label>
+                    <textarea
+                      rows={2}
+                      className="input-control"
+                      value={previewQuestions[inspectIndex].explanation || ''}
+                      onChange={(e) => handleQuestionChange(inspectIndex, 'explanation', e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <button
+                onClick={handleSaveAndPublish}
+                className="btn btn-primary"
+                style={{ width: '100%', padding: '0.85rem', fontWeight: 700 }}
+                disabled={isLoading}
+              >
+                검수 완료 및 학급 배포 확정
+              </button>
+            </div>
+          ) : (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: '300px',
+              border: '2px dashed var(--border-color)',
+              borderRadius: '12px'
+            }}>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>
+                왼쪽에서 조건을 설정하고 [AI 문제 생성하기]를 클릭하세요.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};

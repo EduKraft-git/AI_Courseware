@@ -1,0 +1,389 @@
+/* 모든 환경에서 한글/영문 가독성과 정렬이 일치하는 프리미엄 Pretendard 웹폰트 불러오기 */
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css");
+
+:root {
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  /* 브라우저별 폰트 렌더링 두께 팽창 방지 및 글꼴 평활화 */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  letter-spacing: -0.01em; /* 가독성 향상과 줄바꿈 방지를 위한 자간 미세 축소 가드 */
+
+  /* 벤토 그리드 프리미엄 색상 정의 (Slate-50 베이스 + 바이올렛 블루 & 코발트 포인트) */
+  --bg-primary: #f8fafc;      /* 트렌디한 쿨그레이 슬레이트 배경 */
+  --bg-card: #ffffff;         /* 깨끗한 순백색 */
+  --text-primary: #0f172a;    /* 딥 네이비블랙 (가독성 최상) */
+  --text-secondary: #475569;  /* 설명용 슬레이트회색 */
+  --text-muted: #94a3b8;      /* 비활성 플레이스홀더 */
+  --border-color: #e2e8f0;    /* 정교하고 얇은 회색선 */
+  
+  /* 바이올렛 블루 시그니처 포인트 */
+  --color-point: #6366f1;       /* 더 화사하고 트렌디한 Violet Blue */
+  --color-point-hover: #4f46e5; /* 호버 시 짙은 Indigo */
+  --color-point-light: #e0e7ff; /* 연한 바이올렛 (배경용) */
+
+  /* 알림 상태 색상 */
+  --color-success: #10b981;    /* 선명한 에메랄드 */
+  --color-error: #f43f5e;      /* 화사한 로즈 레드 */
+  --color-warning: #f59e0b;    /* 따뜻한 호박색 */
+
+  /* 벤토 입체그림자 */
+  --shadow-bento: 0 1px 3px 0 rgba(15, 23, 42, 0.03), 0 1px 2px -1px rgba(15, 23, 42, 0.04), 0 0 0 1px rgba(15, 23, 42, 0.01);
+  --shadow-bento-hover: 0 12px 20px -3px rgba(15, 23, 42, 0.08), 0 4px 8px -2px rgba(15, 23, 42, 0.04);
+
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-primary);
+}
+
+#root {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+/* 🏆 벤토 그리드 전용 레이아웃 */
+.app-container {
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 헤더 & 네비게이션 (상단 벤토 블록) */
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--shadow-bento);
+}
+
+.app-logo {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.logo-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--color-point);
+}
+
+.nav-links {
+  display: flex;
+  gap: 0.75rem;
+}
+
+/* 🍱 벤토 그리드 시스템 */
+.bento-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+/* 격자 스팬 유틸리티 */
+.col-span-12 { grid-column: span 12; }
+.col-span-8 { grid-column: span 8; }
+.col-span-6 { grid-column: span 6; }
+.col-span-4 { grid-column: span 4; }
+.col-span-3 { grid-column: span 3; }
+
+.row-span-2 { grid-row: span 2; }
+.row-span-3 { grid-row: span 3; }
+
+/* 벤토 카드 컴포넌트 */
+.card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 1.75rem;
+  box-shadow: var(--shadow-bento);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  position: relative;
+  overflow: hidden;
+}
+
+.card:hover {
+  border-color: #cbd5e1;
+}
+
+/* 🍱 벤토 시그니처 프리미엄 다크 카드 */
+.card-accent-dark {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;
+  color: #ffffff !important;
+  border-color: #334155 !important;
+  box-shadow: var(--shadow-bento) !important;
+}
+.card-accent-dark h2 {
+  color: #ffffff !important;
+}
+.card-accent-dark p {
+  color: #94a3b8 !important;
+}
+.card-accent-dark .badge-indigo {
+  background-color: rgba(99, 102, 241, 0.2) !important;
+  color: #a5b4fc !important;
+  border-color: rgba(99, 102, 241, 0.3) !important;
+}
+
+/* 🍱 벤토 바이올렛 코발트 하이라이트 카드 */
+.card-accent-violet {
+  background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%) !important;
+  border-color: #ddd6fe !important;
+}
+.card-accent-violet .badge-gray {
+  background-color: #ffffff !important;
+  color: var(--color-point) !important;
+  border-color: #e9d5ff !important;
+}
+
+/* 타이틀 및 텍스트 */
+h1, h2, h3, h4 {
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  margin-bottom: 0.5rem;
+}
+
+p {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+/* 버튼 스타일 (정밀한 벤토 스타일) */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.25rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: 10px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  gap: 0.5rem;
+  outline: none;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+/* 메인 블랙 버튼 */
+.btn-primary {
+  background-color: var(--text-primary);
+  color: #ffffff;
+}
+
+.btn-primary:hover {
+  background-color: var(--color-point);
+}
+
+/* 포인트 컬러 강조 버튼 */
+.btn-point {
+  background-color: var(--color-point);
+  color: #ffffff;
+}
+
+.btn-point:hover {
+  background-color: var(--color-point-hover);
+}
+
+/* 서브 플랫 회색 버튼 */
+.btn-secondary {
+  background-color: #f1f5f9;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+
+.btn-secondary:hover {
+  background-color: #e2e8f0;
+  color: var(--text-primary);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* 폼 입력창 */
+.form-group {
+  margin-bottom: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.form-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.input-control {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+  background-color: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  color: var(--text-primary);
+  outline: none;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.input-control:focus {
+  border-color: var(--color-point);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+}
+
+/* ✍️ 학생용 대형 정답 입력창 프리미엄 강조 스타일 */
+.input-solve {
+  width: 100%;
+  padding: 1.1rem 1.5rem;
+  font-size: 1.3rem;
+  font-weight: 700;
+  background-color: #ffffff;
+  border: 2.5px solid var(--color-point);
+  border-radius: 14px;
+  color: var(--text-primary);
+  outline: none;
+  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.05);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.input-solve:focus {
+  border-color: var(--color-point-hover);
+  box-shadow: 0 0 0 5px rgba(99, 102, 241, 0.2), 0 8px 20px rgba(99, 102, 241, 0.12);
+}
+
+.input-solve::placeholder {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+/* 그리드 레이아웃 */
+.grid {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+.grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
+.grid-cols-4 { grid-template-columns: repeat(4, 1fr); }
+
+/* 정갈한 솔리드 뱃지 */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  white-space: nowrap;  /* 가로 줄바꿈 방지 */
+  flex-shrink: 0;       /* 찌그러짐 방지 */
+}
+
+.badge-gray {
+  background-color: #f1f5f9;
+  color: #475569;
+  border-color: #cbd5e1;
+}
+
+.badge-indigo {
+  background-color: #e0e7ff;
+  color: var(--color-point);
+  border-color: #c7d2fe;
+}
+
+.badge-red {
+  background-color: #fee2e2;
+  color: var(--color-error);
+  border-color: #fca5a5;
+}
+
+.badge-green {
+  background-color: #d1fae5;
+  color: var(--color-success);
+  border-color: #6ee7b7;
+}
+
+/* 모바일 반응형 처리 */
+@media (max-width: 768px) {
+  .app-container {
+    padding: 1.25rem 1rem;
+  }
+  
+  .app-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+  }
+  
+  .nav-links {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  /* 모바일에서는 벤토 컬럼을 강제로 세로 적층(span 12)으로 해제 */
+  .bento-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .col-span-8, .col-span-6, .col-span-4, .col-span-3 {
+    grid-column: span 12 / span 12;
+  }
+
+  .row-span-2, .row-span-3 {
+    grid-row: auto;
+  }
+
+  .grid-cols-2, .grid-cols-3, .grid-cols-4 {
+    grid-template-columns: 1fr;
+  }
+  
+  .card {
+    padding: 1.5rem 1.25rem;
+    border-radius: 12px;
+  }
+}
