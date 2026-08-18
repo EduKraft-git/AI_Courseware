@@ -71,9 +71,9 @@ export const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSw
       justifyContent: 'center',
       minHeight: '70vh',
       width: '100%',
-      padding: '1rem'
+      padding: '1rem 0.5rem'
     }}>
-      <div className="card" style={{ maxWidth: '400px', width: '100%', padding: '2.5rem 2rem' }}>
+      <div className="card" style={{ maxWidth: '400px', width: '100%' }}>
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <div style={{ 
             width: '48px', 

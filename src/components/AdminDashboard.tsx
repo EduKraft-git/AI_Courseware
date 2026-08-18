@@ -499,45 +499,40 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         justifyContent: 'space-between',
         alignItems: 'center',
         flexWrap: 'wrap',
-        gap: '1rem',
-        marginBottom: '2rem',
+        gap: '0.75rem',
+        marginBottom: '1.5rem',
         borderBottom: '1px solid var(--border-color)',
         paddingBottom: '0.75rem'
       }}>
-        {/* 탭 전환 */}
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        {/* 탭 전환 (모바일 가로 스크롤 및 2줄 깨짐 완벽 방어) */}
+        <div className="tab-scroll-container" style={{ margin: 0, border: 'none', padding: 0 }}>
           <button
-            className={`btn ${activeTab === 'status' ? 'btn-primary' : 'btn-secondary'}`}
+            className={`btn tab-btn-pill ${activeTab === 'status' ? 'btn-primary' : 'btn-secondary'}`}
             onClick={() => setActiveTab('status')}
-            style={{ borderRadius: '6px', padding: '0.45rem 1rem', fontSize: '0.85rem' }}
           >
             학습 현황판
           </button>
           <button
-            className={`btn ${activeTab === 'monthly_grid' ? 'btn-primary' : 'btn-secondary'}`}
+            className={`btn tab-btn-pill ${activeTab === 'monthly_grid' ? 'btn-primary' : 'btn-secondary'}`}
             onClick={() => setActiveTab('monthly_grid')}
-            style={{ borderRadius: '6px', padding: '0.45rem 1rem', fontSize: '0.85rem' }}
           >
             월간 진도표
           </button>
           <button
-            className={`btn ${activeTab === 'students' ? 'btn-primary' : 'btn-secondary'}`}
+            className={`btn tab-btn-pill ${activeTab === 'students' ? 'btn-primary' : 'btn-secondary'}`}
             onClick={() => setActiveTab('students')}
-            style={{ borderRadius: '6px', padding: '0.45rem 1rem', fontSize: '0.85rem' }}
           >
             학생 및 출결 관리
           </button>
           <button
-            className={`btn ${activeTab === 'problems' ? 'btn-primary' : 'btn-secondary'}`}
+            className={`btn tab-btn-pill ${activeTab === 'problems' ? 'btn-primary' : 'btn-secondary'}`}
             onClick={() => setActiveTab('problems')}
-            style={{ borderRadius: '6px', padding: '0.45rem 1rem', fontSize: '0.85rem' }}
           >
             배포 문제 관리
           </button>
           <button
-            className={`btn ${activeTab === 'classes' ? 'btn-primary' : 'btn-secondary'}`}
+            className={`btn tab-btn-pill ${activeTab === 'classes' ? 'btn-primary' : 'btn-secondary'}`}
             onClick={() => setActiveTab('classes')}
-            style={{ borderRadius: '6px', padding: '0.45rem 1rem', fontSize: '0.85rem' }}
           >
             학급 반 관리
           </button>
@@ -933,7 +928,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               선택된 날짜(<strong>{selectedDate}</strong>) 기준 결석 학생을 체크하거나 정보를 수정할 수 있습니다.
             </p>
 
-            <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+            <div className="table-responsive" style={{ maxHeight: '400px', overflowY: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left' }}>
@@ -1050,7 +1045,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>선택한 월에 배포된 아침활동 수학 과제가 없습니다.</p>
             </div>
           ) : (
-            <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '12px', boxShadow: 'var(--shadow-bento)' }}>
+            <div className="table-responsive" style={{ border: '1px solid var(--border-color)', borderRadius: '12px', boxShadow: 'var(--shadow-bento)' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                 <thead>
                   <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1.5px solid var(--border-color)' }}>
@@ -1175,7 +1170,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }}>아직 배포된 수학 문제가 없습니다.</p>
             </div>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
+            <div className="table-responsive">
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left' }}>
@@ -1261,7 +1256,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               현재 우리 학교 아침활동에 개설되어 가동 중인 학급 반 목록입니다.
             </p>
 
-            <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+            <div className="table-responsive" style={{ maxHeight: '400px', overflowY: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left' }}>

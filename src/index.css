@@ -36,6 +36,10 @@
 
   background-color: var(--bg-primary);
   color: var(--text-primary);
+
+  /* 🌟 한글 단어 단위 줄바꿈 기본 적용 (단어 중간 쪼개짐 원천 방어) */
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 * {
@@ -43,6 +47,8 @@
   margin: 0;
   padding: 0;
   transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 body {
@@ -50,6 +56,8 @@ body {
   display: flex;
   flex-direction: column;
   background-color: var(--bg-primary);
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 #root {
@@ -90,6 +98,7 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  word-break: keep-all;
 }
 
 .logo-dot {
@@ -97,6 +106,7 @@ body {
   height: 8px;
   border-radius: 50%;
   background-color: var(--color-point);
+  flex-shrink: 0;
 }
 
 .nav-links {
@@ -134,6 +144,7 @@ body {
   justify-content: flex-start;
   position: relative;
   overflow: hidden;
+  word-break: keep-all;
 }
 
 .card:hover {
@@ -176,12 +187,14 @@ h1, h2, h3, h4 {
   color: var(--text-primary);
   letter-spacing: -0.02em;
   margin-bottom: 0.5rem;
+  word-break: keep-all;
 }
 
 p {
   color: var(--text-secondary);
   font-size: 0.95rem;
   line-height: 1.6;
+  word-break: keep-all;
 }
 
 /* 버튼 스타일 (정밀한 벤토 스타일) */
@@ -197,6 +210,8 @@ p {
   border: 1px solid transparent;
   gap: 0.5rem;
   outline: none;
+  word-break: keep-all;
+  white-space: nowrap;
 }
 
 .btn:active {
@@ -253,6 +268,7 @@ p {
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-secondary);
+  word-break: keep-all;
 }
 
 .input-control {
@@ -319,6 +335,7 @@ p {
   border: 1px solid transparent;
   white-space: nowrap;  /* 가로 줄바꿈 방지 */
   flex-shrink: 0;       /* 찌그러짐 방지 */
+  word-break: keep-all;
 }
 
 .badge-gray {
@@ -345,26 +362,72 @@ p {
   border-color: #6ee7b7;
 }
 
-/* 모바일 반응형 처리 */
+/* 🌟 탭 네비게이션 가로 스크롤 컨테이너 (모바일 찌그러짐 원천 방어) */
+.tab-scroll-container {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.5rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; /* Firefox */
+  width: 100%;
+}
+
+.tab-scroll-container::-webkit-scrollbar {
+  display: none; /* Chrome, Safari */
+}
+
+.tab-btn-pill {
+  border-radius: 20px !important;
+  padding: 0.5rem 1.15rem !important;
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+  word-break: keep-all !important;
+  font-size: 0.9rem !important;
+}
+
+/* 🌟 반응형 테이블 래퍼 (화면 밖 튀어나옴 방어) */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 1rem;
+}
+
+.table-responsive table {
+  min-width: 580px;
+}
+
+/* 📱 모바일 반응형 처리 */
 @media (max-width: 768px) {
   .app-container {
-    padding: 1.25rem 1rem;
+    padding: 1rem 0.85rem;
   }
   
   .app-header {
-    flex-direction: column;
-    gap: 1rem;
-    align-items: flex-start;
-    margin-bottom: 1.5rem;
-    padding: 1rem;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+    padding: 0.9rem 1rem;
+    border-radius: 12px;
+  }
+
+  .app-logo {
+    font-size: 1.05rem;
+    white-space: normal;
+    word-break: keep-all;
+    line-height: 1.3;
   }
   
   .nav-links {
-    width: 100%;
-    justify-content: space-between;
+    width: auto;
   }
 
-  /* 모바일에서는 벤토 컬럼을 강제로 세로 적층(span 12)으로 해제 */
+  /* 모바일에서는 벤토 컬럼을 세로 적층으로 유연하게 해제 */
   .bento-grid {
     grid-template-columns: 1fr;
     gap: 1rem;
@@ -380,10 +443,49 @@ p {
 
   .grid-cols-2, .grid-cols-3, .grid-cols-4 {
     grid-template-columns: 1fr;
+    gap: 1rem;
   }
   
   .card {
-    padding: 1.5rem 1.25rem;
+    padding: 1.25rem 1rem;
     border-radius: 12px;
+  }
+
+  .tab-btn-pill {
+    padding: 0.4rem 0.85rem !important;
+    font-size: 0.82rem !important;
+  }
+
+  .input-solve {
+    font-size: 1.15rem;
+    padding: 0.9rem 1rem;
+  }
+
+  h1 { font-size: 1.4rem; }
+  h2 { font-size: 1.25rem; }
+  h3 { font-size: 1.1rem; }
+  p { font-size: 0.88rem; }
+}
+
+@media (max-width: 480px) {
+  .app-container {
+    padding: 0.75rem 0.65rem;
+  }
+
+  .app-header {
+    padding: 0.75rem 0.85rem;
+  }
+
+  .app-logo {
+    font-size: 0.95rem;
+  }
+
+  .tab-btn-pill {
+    padding: 0.35rem 0.75rem !important;
+    font-size: 0.78rem !important;
+  }
+
+  .card {
+    padding: 1rem 0.85rem;
   }
 }

@@ -297,15 +297,15 @@ export const StudentSolve: React.FC<StudentSolveProps> = ({
   return (
     <div className="app-container" style={{ maxWidth: '650px' }}>
       {/* 학습창 헤더 */}
-      <header className="app-header" style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'nowrap', marginBottom: '1.5rem', width: '100%' }}>
-        <button onClick={onBackToDashboard} className="btn btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', whiteSpace: 'nowrap', flexShrink: 0 }}>
+      <header className="app-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', width: '100%' }}>
+        <button onClick={onBackToDashboard} className="btn btn-secondary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', whiteSpace: 'nowrap', flexShrink: 0 }}>
           나가기
         </button>
-        <div style={{ fontWeight: 600, fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', margin: '0 0.5rem' }}>
+        <div style={{ fontWeight: 700, fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center', flex: 1, minWidth: 0 }}>
           {problem.chapter}
         </div>
-        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', flexShrink: 0 }}>
-          {student.classId} {student.name} 학생
+        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+          {student.classId} {student.name}
         </div>
       </header>
 
@@ -424,14 +424,16 @@ export const StudentSolve: React.FC<StudentSolveProps> = ({
             </div>
           </div>
 
-          {/* 답안 입력 폼 (문제란 카드와의 여백을 marginTop 2.5rem으로 확대 적용) */}
-          <form onSubmit={handleSubmit} style={{ marginTop: '2.5rem', marginBottom: '2.5rem' }}>
-            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          {/* 답안 입력 폼 (모바일 터치 및 반응형 플렉스 적용) */}
+          <form onSubmit={handleSubmit} style={{ marginTop: '2rem', marginBottom: '2rem' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'stretch' }}>
               <input
                 type="text"
-                placeholder="여기에 정답을 입력하세요"
+                placeholder="정답 입력"
                 className="input-solve"
                 style={{ 
+                  flex: 1,
+                  minWidth: 0,
                   border: isSolved ? '2.5px solid var(--color-success)' : undefined,
                   backgroundColor: isSolved ? 'rgba(16, 185, 129, 0.02)' : undefined,
                   color: isSolved ? 'var(--color-success)' : undefined
@@ -451,7 +453,7 @@ export const StudentSolve: React.FC<StudentSolveProps> = ({
                 <button
                   type="submit"
                   className="btn btn-primary"
-                  style={{ whiteSpace: 'nowrap', padding: '1.1rem 2rem', fontSize: '1.1rem', borderRadius: '14px' }}
+                  style={{ whiteSpace: 'nowrap', padding: '0 1.5rem', fontSize: '1rem', borderRadius: '14px', flexShrink: 0 }}
                   disabled={isSubmitting || !inputValue.trim()}
                 >
                   제출
@@ -461,7 +463,7 @@ export const StudentSolve: React.FC<StudentSolveProps> = ({
                   type="button"
                   onClick={handleNextQuestion}
                   className="btn btn-primary btn-point"
-                  style={{ whiteSpace: 'nowrap', padding: '1.1rem 2rem', fontSize: '1.1rem', borderRadius: '14px' }}
+                  style={{ whiteSpace: 'nowrap', padding: '0 1.25rem', fontSize: '1rem', borderRadius: '14px', flexShrink: 0 }}
                 >
                   다음 문제
                 </button>

@@ -150,10 +150,10 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   return (
     <div className="app-container">
       {/* 학생 대시보드 헤더 */}
-      <header className="app-header" style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'nowrap', width: '100%' }}>
-        <div className="app-logo" style={{ display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
+      <header className="app-header">
+        <div className="app-logo">
           <div className="logo-dot"></div>
-          {student.id}번 {student.name} 학생의 학습창
+          <span>{student.id}번 {student.name} 학생의 학습창</span>
         </div>
         <button 
           onClick={async () => {
@@ -167,19 +167,18 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
         </button>
       </header>
 
-      {/* 탭 네비게이션 */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+      {/* 탭 네비게이션 (모바일 가로 스크롤 지원 및 2줄 깨짐 완벽 방어) */}
+      <div className="tab-scroll-container">
         <button
-          className={`btn ${activeTab === 'today' ? 'btn-primary' : 'btn-secondary'}`}
+          className={`btn tab-btn-pill ${activeTab === 'today' ? 'btn-primary' : 'btn-secondary'}`}
           onClick={() => setActiveTab('today')}
-          style={{ borderRadius: '20px', padding: '0.5rem 1.25rem' }}
         >
           오늘의 아침활동
         </button>
         <button
-          className={`btn ${activeTab === 'pending' ? 'btn-primary' : 'btn-secondary'}`}
+          className={`btn tab-btn-pill ${activeTab === 'pending' ? 'btn-primary' : 'btn-secondary'}`}
           onClick={() => setActiveTab('pending')}
-          style={{ borderRadius: '20px', padding: '0.5rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
         >
           밀린 학습
           {pendingProblems.length > 0 && (
@@ -200,9 +199,8 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
           )}
         </button>
         <button
-          className={`btn ${activeTab === 'calendar' ? 'btn-primary' : 'btn-secondary'}`}
+          className={`btn tab-btn-pill ${activeTab === 'calendar' ? 'btn-primary' : 'btn-secondary'}`}
           onClick={() => setActiveTab('calendar')}
-          style={{ borderRadius: '20px', padding: '0.5rem 1.25rem' }}
         >
           학습 달력
         </button>
@@ -357,24 +355,24 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
 
           {/* 학습 달력 탭 */}
           {activeTab === 'calendar' && (
-            <div className="card" style={{ padding: '2rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+            <div className="card" style={{ padding: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.5rem' }}>
                 <div>
-                  <h2 style={{ fontSize: '1.4rem', fontWeight: 700, margin: 0 }}>학습 달력</h2>
+                  <h2 style={{ fontSize: '1.3rem', fontWeight: 700, margin: 0 }}>학습 달력</h2>
                   <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
                     매일의 아침활동 달성 상태와 출결 이력을 확인할 수 있습니다.
                   </p>
                 </div>
                 
                 {/* 월 네비게이션 */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', backgroundColor: '#f1f5f9', padding: '0.4rem 0.8rem', borderRadius: '10px' }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.75rem', backgroundColor: '#f1f5f9', padding: '0.35rem 0.75rem', borderRadius: '10px' }}>
                   <button 
                     onClick={() => setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1))}
                     style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)', padding: '0 0.35rem' }}
                   >
                     &lt;
                   </button>
-                  <span style={{ fontWeight: 700, fontSize: '0.95rem', minWidth: '90px', textAlign: 'center' }}>
+                  <span style={{ fontWeight: 700, fontSize: '0.9rem', minWidth: '80px', textAlign: 'center' }}>
                     {calendarDate.getFullYear()}년 {calendarDate.getMonth() + 1}월
                   </span>
                   <button 
@@ -391,7 +389,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
               ) : (
                 <div>
                   {/* 달력 요일 헤더 */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '0.5rem', textAlign: 'center', fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '0.25rem', textAlign: 'center', fontWeight: 700, fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
                     <div style={{ color: '#ef4444' }}>일</div>
                     <div>월</div>
                     <div>화</div>
@@ -402,7 +400,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                   </div>
 
                   {/* 달력 일자 그리드 */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '0.5rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '0.25rem' }}>
                     {(() => {
                       const year = calendarDate.getFullYear();
                       const month = calendarDate.getMonth();
@@ -416,7 +414,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                       
                       // 1. 이전 달 빈 칸 채우기
                       for (let i = 0; i < firstDayIndex; i++) {
-                        cells.push(<div key={`empty-${i}`} style={{ height: '95px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #f1f5f9' }} />);
+                        cells.push(<div key={`empty-${i}`} style={{ minHeight: '75px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #f1f5f9' }} />);
                       }
                       
                       // 2. 이번 달 일자 채우기
@@ -483,18 +481,18 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                           <div 
                             key={`day-${day}`} 
                             style={{ 
-                              height: '95px', 
+                              minHeight: '75px', 
                               backgroundColor: cellBg, 
                               border: cellBorder, 
-                              borderRadius: '10px', 
-                              padding: '0.5rem',
+                              borderRadius: '8px', 
+                              padding: '0.35rem 0.25rem',
                               display: 'flex',
                               flexDirection: 'column',
                               justifyContent: 'space-between',
                               boxShadow: '0 1px 2px rgba(0,0,0,0.01)'
                             }}
                           >
-                            <span style={{ fontWeight: 700, fontSize: '0.85rem', color: dayNumColor }}>
+                            <span style={{ fontWeight: 700, fontSize: '0.8rem', color: dayNumColor }}>
                               {day}
                             </span>
                             

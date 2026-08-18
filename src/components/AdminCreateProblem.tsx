@@ -340,12 +340,12 @@ JSON 응답 스키마:
   return (
     <div className="app-container">
       {/* 헤더 네비게이션 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.5rem' }}>
         <div>
           <h2>AI 아침활동 수학 문제 출제 및 검수</h2>
           <p style={{ marginTop: '0.25rem' }}>Gemini AI를 활용하여 학년과 단원에 꼭 맞는 10분 아침활동 문제를 자동 생성합니다.</p>
         </div>
-        <button onClick={onBack} className="btn btn-secondary">
+        <button onClick={onBack} className="btn btn-secondary" style={{ flexShrink: 0 }}>
           ← 대시보드로 돌아가기
         </button>
       </div>
