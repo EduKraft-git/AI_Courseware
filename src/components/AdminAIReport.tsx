@@ -556,7 +556,7 @@ ${JSON.stringify(historySummary, null, 2)}
                 ) : isGeneratingAI ? (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '250px' }}>
                     <div style={{
-                      border: '4px solid rgba(79, 70, 229, 0.1)',
+                      border: '4px solid rgba(6, 78, 59, 0.1)',
                       borderLeft: '4px solid var(--color-point)',
                       borderRadius: '50%',
                       width: '36px',
@@ -571,7 +571,7 @@ ${JSON.stringify(historySummary, null, 2)}
                 ) : (
                   <div>
                     <div style={{ 
-                      backgroundColor: 'rgba(79, 70, 229, 0.02)', 
+                      backgroundColor: 'rgba(6, 78, 59, 0.03)', 
                       border: '1px solid var(--color-point-light)', 
                       borderRadius: '8px', 
                       padding: '1.5rem',
@@ -727,7 +727,7 @@ ${JSON.stringify(historySummary, null, 2)}
               ) : isGeneratingComprehensive ? (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '250px' }}>
                   <div style={{
-                    border: '4px solid rgba(79, 70, 229, 0.1)',
+                    border: '4px solid rgba(6, 78, 59, 0.1)',
                     borderLeft: '4px solid var(--color-point)',
                     borderRadius: '50%',
                     width: '36px',
@@ -745,7 +745,7 @@ ${JSON.stringify(historySummary, null, 2)}
               ) : (
                 <div>
                   <div style={{ 
-                    backgroundColor: 'rgba(99, 102, 241, 0.02)', 
+                    backgroundColor: 'rgba(6, 78, 59, 0.03)', 
                     border: '1px solid var(--color-point-light)', 
                     borderRadius: '8px', 
                     padding: '1.5rem',

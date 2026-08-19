@@ -134,31 +134,8 @@ function App() {
             />
           ) : (
             // 교사 대시보드 허브
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+            <div>
               <AdminDashboard onLogout={handleAdminLogout} />
-              
-              <footer style={{ 
-                marginTop: 'auto', 
-                padding: '2rem 0 1rem', 
-                borderTop: '1px solid var(--border-color)', 
-                textAlign: 'center', 
-                fontSize: '0.8rem', 
-                color: 'var(--text-secondary)' 
-              }}>
-                <button 
-                  onClick={() => setUserMode('student')}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--color-point)',
-                    textDecoration: 'underline',
-                    cursor: 'pointer',
-                    fontWeight: 600
-                  }}
-                >
-                  🏫 학생 학습창 화면으로 테스트 전환
-                </button>
-              </footer>
             </div>
           )}
         </div>

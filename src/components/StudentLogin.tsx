@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getAllStudents, getAllClasses } from '../db';
 import { Student, SchoolClass } from '../types';
 
@@ -14,6 +14,7 @@ export const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSw
   const [studentName, setStudentName] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 🌟 컴포넌트 마운트 시 동적 학급 반 목록 수립
   useEffect(() => {
@@ -29,16 +30,20 @@ export const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSw
       }
     };
     loadClasses();
+    return () => {
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+    };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!studentId || !studentName) {
-      setError('번호와 이름을 모두 입력해 주세요.');
+      triggerError('번호와 이름을 입력해 주세요');
       return;
     }
 
     setIsLoading(true);
+    if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
     setError('');
 
     try {
@@ -53,14 +58,23 @@ export const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSw
         sessionStorage.setItem('loggedInStudent', JSON.stringify(foundStudent));
         onLoginSuccess(foundStudent);
       } else {
-        setError('등록되지 않은 번호이거나 이름이 일치하지 않습니다. 선생님께 확인해 보세요!');
+        triggerError('일치하는 학생 정보가 없습니다');
       }
     } catch (err) {
-      setError('로그인 중 문제가 발생했습니다. 다시 시도해 주세요.');
+      triggerError('로그인 오류가 발생했습니다');
       console.error(err);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // 1.5초간 버튼에 에러 메시지를 표시한 후 부드럽게 복귀시키는 헬퍼
+  const triggerError = (msg: string) => {
+    if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+    setError(msg);
+    errorTimerRef.current = setTimeout(() => {
+      setError('');
+    }, 1500);
   };
 
   return (
@@ -73,49 +87,20 @@ export const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSw
       width: '100%',
       padding: '1rem 0.5rem'
     }}>
-      <div className="card" style={{ maxWidth: '400px', width: '100%' }}>
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{ 
-            width: '48px', 
-            height: '48px', 
-            borderRadius: '12px', 
-            backgroundColor: 'var(--text-primary)', 
-            color: '#ffffff',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '1.25rem',
-            fontWeight: 700,
-            marginBottom: '1rem'
-          }}>
-            수학
-          </div>
-          <h2>아침활동 AI 코스웨어</h2>
-          <p style={{ marginTop: '0.25rem' }}>오늘의 수학 문제를 풀기 위해 로그인해 주세요.</p>
-        </div>
-
-        {error && (
-          <div style={{
-            backgroundColor: 'rgba(239, 68, 68, 0.08)',
-            border: '1px solid var(--color-error)',
-            color: 'var(--color-error)',
-            padding: '0.75rem',
-            borderRadius: '8px',
-            fontSize: '0.85rem',
-            marginBottom: '1.25rem',
-            fontWeight: 500
-          }}>
-            {error}
-          </div>
-        )}
-
+      <div className="card" style={{ maxWidth: '400px', width: '100%', padding: '2rem' }}>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label className="form-label">학급 반</label>
             <select
               className="input-control"
               value={classId}
-              onChange={(e) => setClassId(e.target.value)}
+              onChange={(e) => {
+                setClassId(e.target.value);
+                if (error) {
+                  if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+                  setError('');
+                }
+              }}
               disabled={isLoading}
             >
               {classList.map((c) => (
@@ -124,39 +109,61 @@ export const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSw
             </select>
           </div>
 
-          <div className="form-group">
-            <label className="form-label">학급 번호</label>
-            <input
-              type="text"
-              inputMode="decimal"
-              placeholder="예: 5"
-              className="input-control"
-              value={studentId}
-              onChange={(e) => setStudentId(e.target.value.replace(/[^0-9]/g, ''))}
-              disabled={isLoading}
-              autoFocus
-            />
-          </div>
+          {/* 번호와 이름을 한 줄로 배치하는 군더더기 없는 깔끔한 인라인 그리드 */}
+          <div style={{ display: 'grid', gridTemplateColumns: '95px 1fr', gap: '0.75rem', marginBottom: '1.5rem' }}>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">번호</label>
+              <input
+                type="text"
+                inputMode="decimal"
+                placeholder="예: 5"
+                className="input-control"
+                style={{ textAlign: 'center' }}
+                value={studentId}
+                onChange={(e) => {
+                  setStudentId(e.target.value.replace(/[^0-9]/g, ''));
+                  if (error) {
+                    if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+                    setError('');
+                  }
+                }}
+                disabled={isLoading}
+                autoFocus
+              />
+            </div>
 
-          <div className="form-group" style={{ marginBottom: '1.75rem' }}>
-            <label className="form-label">이름</label>
-            <input
-              type="text"
-              placeholder="이름을 입력하세요"
-              className="input-control"
-              value={studentName}
-              onChange={(e) => setStudentName(e.target.value)}
-              disabled={isLoading}
-            />
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">이름</label>
+              <input
+                type="text"
+                placeholder="이름을 입력하세요"
+                className="input-control"
+                value={studentName}
+                onChange={(e) => {
+                  setStudentName(e.target.value);
+                  if (error) {
+                    if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+                    setError('');
+                  }
+                }}
+                disabled={isLoading}
+              />
+            </div>
           </div>
 
           <button
             type="submit"
-            className="btn btn-primary btn-point"
-            style={{ width: '100%', padding: '0.8rem' }}
+            className="btn btn-primary"
+            style={{ 
+              width: '100%', 
+              padding: '0.8rem',
+              backgroundColor: error ? 'var(--color-error)' : 'var(--color-point)',
+              boxShadow: error ? '0 4px 14px rgba(225, 29, 72, 0.3)' : 'var(--shadow-button)',
+              transition: 'background-color 0.35s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.35s cubic-bezier(0.4, 0, 0.2, 1), color 0.35s ease'
+            }}
             disabled={isLoading}
           >
-            {isLoading ? '확인 중...' : '학습 시작하기'}
+            {isLoading ? '확인 중...' : error ? error : '학습 시작하기'}
           </button>
         </form>
 

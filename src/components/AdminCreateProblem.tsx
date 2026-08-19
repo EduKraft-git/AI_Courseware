@@ -512,7 +512,7 @@ JSON 응답 스키마:
           {isLoading ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '300px' }}>
               <div style={{
-                border: '4px solid rgba(79, 70, 229, 0.1)',
+                border: '4px solid rgba(6, 78, 59, 0.1)',
                 borderLeft: '4px solid var(--color-point)',
                 borderRadius: '50%',
                 width: '36px',

@@ -34,17 +34,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [activeTab, setActiveTab] = useState<'status' | 'students' | 'problems' | 'monthly_grid' | 'classes'>('status');
   const [activeView, setActiveView] = useState<'main' | 'create_problem' | 'ai_report'>('main');
   
-  // 🔐 임시 API 키 수동 로드
-  const [tempKeyInput, setTempKeyInput] = useState(localStorage.getItem('temp_gemini_api_key') || '');
-  const handleSaveTempKey = () => {
-    localStorage.setItem('temp_gemini_api_key', tempKeyInput.trim());
-    alert('Gemini API 키가 브라우저에 임시 저장되었습니다. 새로고침 없이 즉시 적용됩니다!');
-  };
-  const handleClearTempKey = () => {
-    localStorage.removeItem('temp_gemini_api_key');
-    setTempKeyInput('');
-    alert('수동 API 키가 삭제되었습니다. 이제 다시 .env 환경변수의 API 키를 기본 적용합니다.');
-  };
+
 
   // 날짜 설정
   const getTodayString = () => {
@@ -493,7 +483,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         </div>
       </header>
 
-      {/* 상단 탭 및 설정 */}
+      {/* 상단 탭 및 설정: 왼쪽 탭들 / 오른쪽 필터 컨트롤 한 줄 배치 */}
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
@@ -501,11 +491,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         flexWrap: 'wrap',
         gap: '0.75rem',
         marginBottom: '1.5rem',
-        borderBottom: '1px solid var(--border-color)',
-        paddingBottom: '0.75rem'
+        paddingBottom: '0.25rem'
       }}>
-        {/* 탭 전환 (모바일 가로 스크롤 및 2줄 깨짐 완벽 방어) */}
-        <div className="tab-scroll-container" style={{ margin: 0, border: 'none', padding: 0 }}>
+        {/* 왼쪽: 탭 전환 (모바일 가로 스크롤) */}
+        <div className="tab-scroll-container" style={{ margin: 0, border: 'none', padding: 0, width: 'auto', flex: '0 1 auto' }}>
           <button
             className={`btn tab-btn-pill ${activeTab === 'status' ? 'btn-primary' : 'btn-secondary'}`}
             onClick={() => setActiveTab('status')}
@@ -538,14 +527,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           </button>
         </div>
 
-        {/* 기준 날짜 & 반 선택 (현황판 및 학생 관리 탭에서만 활성화) */}
+        {/* 오른쪽: 기준 날짜 & 반 선택 (현황판 및 학생 관리 탭에서만 활성화) */}
         {(activeTab === 'status' || activeTab === 'students') && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginLeft: 'auto', flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
               <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>학급 반:</span>
               <select
                 className="input-control"
-                style={{ padding: '0.4rem 0.8rem', width: '120px', fontSize: '0.85rem', borderRadius: '8px' }}
+                style={{ padding: '0.4rem 0.8rem', width: '110px', fontSize: '0.85rem', borderRadius: '8px' }}
                 value={classId}
                 onChange={(e) => setClassId(e.target.value)}
               >
@@ -555,12 +544,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               </select>
             </div>
             
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
               <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>기준 날짜:</span>
               <input 
                 type="date" 
                 className="input-control" 
-                style={{ padding: '0.4rem 0.8rem', width: '150px', fontSize: '0.85rem' }}
+                style={{ padding: '0.4rem 0.8rem', width: '145px', fontSize: '0.85rem' }}
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
               />
@@ -570,12 +559,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
         {/* 월간 진도표 조작 컨트롤 (월간 진도표 탭에서만 활성화) */}
         {activeTab === 'monthly_grid' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginLeft: 'auto', flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
               <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>학급 반:</span>
               <select
                 className="input-control"
-                style={{ padding: '0.4rem 0.8rem', width: '120px', fontSize: '0.85rem', borderRadius: '8px' }}
+                style={{ padding: '0.4rem 0.8rem', width: '110px', fontSize: '0.85rem', borderRadius: '8px' }}
                 value={classId}
                 onChange={(e) => setClassId(e.target.value)}
               >
@@ -585,21 +574,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               </select>
             </div>
             
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', backgroundColor: '#f1f5f9', padding: '0.4rem 0.8rem', borderRadius: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', backgroundColor: '#f4efe6', padding: '0.35rem 0.75rem', borderRadius: '8px' }}>
               <button 
                 onClick={() => setMonthlyGridDate(new Date(monthlyGridDate.getFullYear(), monthlyGridDate.getMonth() - 1, 1))}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)', padding: '0 0.3rem' }}
+                style={{ border: 'none', background: 'none', cursor: 'pointer', fontWeight: 700, padding: '0 0.4rem', color: 'var(--text-primary)' }}
               >
-                &lt;
+                ◀
               </button>
-              <span style={{ fontWeight: 700, fontSize: '0.85rem', minWidth: '75px', textAlign: 'center' }}>
+              <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)', minWidth: '85px', textAlign: 'center' }}>
                 {monthlyGridDate.getFullYear()}년 {monthlyGridDate.getMonth() + 1}월
               </span>
               <button 
                 onClick={() => setMonthlyGridDate(new Date(monthlyGridDate.getFullYear(), monthlyGridDate.getMonth() + 1, 1))}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)', padding: '0 0.3rem' }}
+                style={{ border: 'none', background: 'none', cursor: 'pointer', fontWeight: 700, padding: '0 0.4rem', color: 'var(--text-primary)' }}
               >
-                &gt;
+                ▶
               </button>
             </div>
           </div>
@@ -630,134 +619,165 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
         return (
           <div className="bento-grid">
-            {/* 🍱 Bento 1: 오늘의 문제 배포 현황 (col-span-8) */}
-            <div className="card col-span-8 card-accent-dark" style={{ minHeight: '220px', justifyContent: 'space-between', padding: '1.25rem 1.5rem' }}>
-              <div>
-                <span className="badge badge-indigo" style={{ marginBottom: '0.75rem' }}>오늘의 수학 배포</span>
-                
-                {dailyProblems.length > 0 ? (
-                  /* 오늘 배포된 여러 문제를 볼 수 있는 배너 형식 리스트 */
-                  <div style={{ 
-                    display: 'flex', 
-                    gap: '0.75rem', 
-                    overflowX: 'auto', 
-                    padding: '0.2rem 0 0.75rem 0', 
-                    marginBottom: '0.5rem',
-                    scrollbarWidth: 'thin'
-                  }}>
-                    {dailyProblems.map((p) => {
-                      const isSelected = selectedProblemId === p.id;
-                      return (
-                        <div
-                          key={p.id}
-                          onClick={() => setSelectedProblemId(p.id)}
-                          style={{
-                            flex: '0 0 auto',
-                            width: '230px',
-                            padding: '0.9rem 1.1rem',
-                            borderRadius: '10px',
-                            border: isSelected ? '2px solid #ffffff' : '1px solid rgba(255, 255, 255, 0.15)',
-                            backgroundColor: isSelected ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.04)',
-                            cursor: 'pointer',
-                            transition: 'all 0.18s ease-in-out',
-                            boxShadow: isSelected ? '0 4px 12px rgba(0, 0, 0, 0.15)' : 'none'
-                          }}
-                        >
-                          <div style={{ fontSize: '0.75rem', fontWeight: 600, color: isSelected ? '#ffffff' : 'rgba(255, 255, 255, 0.6)', marginBottom: '0.25rem' }}>
-                            🎓 {p.grade}
-                          </div>
-                          <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#ffffff', marginBottom: '0.35rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {p.chapter}
-                          </div>
-                          <div style={{ fontSize: '0.75rem', color: isSelected ? 'rgba(255,255,255,0.8)' : 'rgba(255, 255, 255, 0.45)' }}>
-                            {p.questions.length}문항 / {p.type.substring(0,6)}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div style={{ padding: '1rem 0' }}>
-                    <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '0 0 0.35rem 0', color: '#ffffff' }}>
-                      배포된 아침활동 수학 문제가 없습니다.
-                    </h2>
-                    <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)', margin: 0 }}>
-                      학생들이 아침 수학 활동을 하려면 먼저 문제를 출제해 주어야 합니다.
-                    </p>
-                  </div>
-                )}
-              </div>
-              
+            {/* 🍱 Bento 1: 오늘의 수학 배포 현황 (2-Row Compact Slim Card) */}
+            <div className="card col-span-8 card-accent-dark" style={{ 
+              padding: '1.25rem 1.5rem',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              gap: '0.85rem'
+            }}>
+              {/* Row 1: 배포 상태 뱃지 (왼쪽) & 액션 버튼 (오른쪽) */}
               <div style={{ 
-                borderTop: '1px solid rgba(255, 255, 255, 0.1)', 
-                paddingTop: '0.75rem', 
-                marginTop: '0.5rem',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: '0.5rem'
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                flexWrap: 'wrap', 
+                gap: '0.5rem' 
               }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span className="badge badge-indigo" style={{ margin: 0, padding: '0.35rem 0.75rem' }}>
+                    오늘의 수학 배포
+                  </span>
+                  {dailyProblems.length > 0 && (
+                    <span style={{ fontSize: '0.8rem', color: 'rgba(255, 255, 255, 0.75)' }}>
+                      총 {dailyProblems.length}건
+                    </span>
+                  )}
+                </div>
+
                 {activeProblem ? (
-                  <>
-                    <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)' }}>
-                      💡 선택됨: <strong>{activeProblem.grade} - {activeProblem.chapter}</strong> ({activeProblem.questions.length}문제)
-                    </span>
-                    <button 
-                      onClick={() => setActiveView('create_problem')} 
-                      className="btn btn-secondary"
-                      style={{ 
-                        fontSize: '0.75rem', 
-                        padding: '0.35rem 0.75rem', 
-                        backgroundColor: '#ffffff', 
-                        color: 'var(--text-primary)', 
-                        border: 'none', 
-                        borderRadius: '6px',
-                        fontWeight: 600
-                      }}
-                    >
-                      배포 문제 수정/조회
-                    </button>
-                  </>
+                  <button 
+                    onClick={() => setActiveView('create_problem')} 
+                    className="btn"
+                    style={{ 
+                      fontSize: '0.8rem', 
+                      padding: '0.4rem 0.85rem', 
+                      backgroundColor: '#ffffff', 
+                      color: 'var(--text-primary)', 
+                      border: 'none', 
+                      borderRadius: '8px',
+                      fontWeight: 600,
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
+                    }}
+                  >
+                    배포 문제 수정/조회
+                  </button>
                 ) : (
-                  <>
-                    <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)' }}>
-                      새로운 아침활동 문제를 출제해 보세요.
-                    </span>
-                    <button 
-                      onClick={() => {
-                        setSelectedProblemId(null);
-                        setActiveView('create_problem');
-                      }} 
-                      className="btn btn-point"
-                      style={{ 
-                        fontSize: '0.75rem', 
-                        padding: '0.4rem 0.8rem',
-                        fontWeight: 600
-                      }}
-                    >
-                      지금 AI로 출제하기
-                    </button>
-                  </>
+                  <button 
+                    onClick={() => {
+                      setSelectedProblemId(null);
+                      setActiveView('create_problem');
+                    }} 
+                    className="btn btn-point"
+                    style={{ 
+                      fontSize: '0.8rem', 
+                      padding: '0.4rem 0.85rem',
+                      fontWeight: 600
+                    }}
+                  >
+                    지금 AI로 출제하기
+                  </button>
                 )}
               </div>
+
+              {/* Row 2: 배포 문제 선택 칩 리스트 (가로 스크롤 및 모바일 최적화) */}
+              {dailyProblems.length > 0 ? (
+                <div style={{ 
+                  display: 'flex', 
+                  gap: '0.65rem', 
+                  overflowX: 'auto', 
+                  paddingBottom: '0.25rem',
+                  WebkitOverflowScrolling: 'touch',
+                  scrollbarWidth: 'none'
+                }}>
+                  {dailyProblems.map((p) => {
+                    const isSelected = selectedProblemId === p.id;
+                    return (
+                      <div
+                        key={p.id}
+                        onClick={() => setSelectedProblemId(p.id)}
+                        style={{
+                          flex: '0 0 auto',
+                          padding: '0.55rem 0.95rem',
+                          borderRadius: '8px',
+                          border: isSelected ? '1.5px solid #ffffff' : '1px solid rgba(255, 255, 255, 0.15)',
+                          backgroundColor: isSelected ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          transition: 'background-color 0.15s ease'
+                        }}
+                      >
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: isSelected ? '#ffffff' : 'rgba(255, 255, 255, 0.85)' }}>
+                          🎓 {p.grade}
+                        </span>
+                        <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#ffffff' }}>
+                          {p.chapter}
+                        </span>
+                        <span style={{ fontSize: '0.78rem', color: isSelected ? 'rgba(255,255,255,0.9)' : 'rgba(255, 255, 255, 0.5)' }}>
+                          ({p.questions.length}문항)
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div style={{ padding: '0.25rem 0' }}>
+                  <p style={{ fontSize: '0.9rem', color: 'rgba(255, 255, 255, 0.8)', margin: 0 }}>
+                    배포된 아침활동 수학 문제가 없습니다.
+                  </p>
+                </div>
+              )}
             </div>
 
-            {/* 🍱 Bento 2: 학급 요약 통계 (col-span-4) */}
-            <div className="card col-span-4 card-accent-violet" style={{ minHeight: '160px' }}>
-              <span className="badge badge-gray" style={{ marginBottom: '0.5rem' }}>
-                실시간 분석 요약
-              </span>
-              <div style={{ marginTop: '0.2rem' }}>
-                <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--color-point)', lineHeight: '1.2' }}>
+            {/* 🍱 Bento 2: 학급 요약 통계 (2-Row Compact Slim Card, col-span-4) */}
+            <div className="card col-span-4 card-accent-violet" style={{ 
+              padding: '1.25rem 1.5rem',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              gap: '0.85rem'
+            }}>
+              {/* Row 1: 뱃지 (왼쪽) & 재적/결석 텍스트 (오른쪽, 아이콘 제거) */}
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                flexWrap: 'wrap', 
+                gap: '0.5rem' 
+              }}>
+                <span className="badge badge-gray" style={{ margin: 0, padding: '0.35rem 0.75rem' }}>
+                  실시간 분석 요약
+                </span>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                  재적 {totalCount}명 · 결석 {absentCount}명
+                </span>
+              </div>
+
+              {/* Row 2: 완료율 강조 및 완료 인원수 슬림 칩 */}
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '0.75rem',
+                padding: '0.4rem 0'
+              }}>
+                <div style={{ 
+                  fontSize: '1.45rem', 
+                  fontWeight: 800, 
+                  color: 'var(--color-point)', 
+                  lineHeight: 1 
+                }}>
                   {completionRate}%
                 </div>
-                <p style={{ fontSize: '0.85rem', fontWeight: 600, marginTop: '0.25rem' }}>
-                  활동 완료율 ({completedStudentsCount} / {targetCount}명)
-                </p>
-                <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-                  <span>👥 재적: {totalCount}명</span>
-                  <span>🩹 결석: {absentCount}명</span>
+                <div style={{ 
+                  fontSize: '0.88rem', 
+                  fontWeight: 600, 
+                  color: 'var(--text-primary)',
+                  whiteSpace: 'nowrap'
+                }}>
+                  활동 완료 ({completedStudentsCount} / {targetCount}명)
                 </div>
               </div>
             </div>
@@ -803,23 +823,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                     const totalQuestions = activeProblem?.questions.length || 0;
 
                     let statusBadge = <span className="badge badge-gray">미시작</span>;
-                    let cardBorder = '1px solid var(--border-color)';
+                    let cardShadow = '0 4px 12px rgba(15, 23, 42, 0.06)';
                     let cardBg = '#ffffff';
 
                     if (isStudentAbsent) {
                       statusBadge = <span className="badge" style={{ backgroundColor: '#fef3c7', color: '#d97706' }}>{absentLabel}</span>;
-                      cardBorder = '1px dashed #e2e8f0';
-                      cardBg = '#f8fafc';
+                      cardBg = '#fffbeb';
+                      cardShadow = '0 2px 8px rgba(217, 119, 6, 0.06)';
                     } else if (totalQuestions > 0) {
                       if (completedCount >= totalQuestions) {
                         statusBadge = <span className="badge badge-green">완료</span>;
-                        cardBorder = '1px solid var(--color-success)';
-                        cardBg = 'rgba(16, 185, 129, 0.02)';
+                        cardBg = 'rgba(5, 150, 105, 0.08)';
+                        cardShadow = '0 4px 12px rgba(5, 150, 105, 0.12)';
                       } else if (mySubs.length > 0 || hasStartMarker) {
                         // 답안 제출이 있거나, 아직 제출은 없으나 풀이창을 연 경우 진행중으로 표시
                         statusBadge = <span className="badge badge-indigo">진행중 ({completedCount}/{totalQuestions})</span>;
-                        cardBorder = '1px solid var(--color-point)';
-                        cardBg = 'rgba(79, 70, 229, 0.01)';
+                        cardBg = 'rgba(6, 78, 59, 0.06)';
+                        cardShadow = '0 4px 12px rgba(6, 78, 59, 0.12)';
                       }
                     }
 
@@ -828,33 +848,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                         key={student.id}
                         onClick={() => !isStudentAbsent && handleStudentClick(student)}
                         style={{
-                          border: cardBorder,
+                          border: 'none',
                           backgroundColor: cardBg,
                           borderRadius: '12px',
-                          padding: '1rem 1.25rem',
+                          padding: '0.75rem 1rem',
                           cursor: isStudentAbsent ? 'not-allowed' : 'pointer',
-                          boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'space-between',
-                          minHeight: '110px'
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                            {student.id}번
-                          </span>
-                          {statusBadge}
-                        </div>
-                        <div style={{ 
-                          fontSize: '1rem', 
-                          fontWeight: 700, 
-                          marginTop: '0.5rem', 
-                          color: isStudentAbsent ? 'var(--text-muted)' : 'var(--text-primary)',
+                          boxShadow: cardShadow,
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '0.45rem'
-                        }}>
+                          justifyContent: 'space-between',
+                          gap: '0.5rem',
+                          transition: 'background-color 0.15s ease'
+                        }}
+                      >
+                        {/* 왼쪽: 인디케이터 - 번호 - 이름 */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0, overflow: 'hidden' }}>
                           {!isStudentAbsent && (
                             <span 
                               title={isOnline ? '현재 로그인 접속 중 (온라인)' : '접속 종료 또는 미접속 (오프라인)'}
@@ -868,13 +876,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                               }}
                             />
                           )}
-                          {student.name}
+                          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', flexShrink: 0 }}>
+                            {String(student.id).padStart(2, '0')}번
+                          </span>
+                          <span style={{ 
+                            fontSize: '0.95rem', 
+                            fontWeight: 700, 
+                            color: isStudentAbsent ? 'var(--text-muted)' : 'var(--text-primary)',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          }}>
+                            {student.name}
+                          </span>
                         </div>
-                        {!isStudentAbsent && (
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem', textAlign: 'right' }}>
-                            분석 리포트 보기
-                          </div>
-                        )}
+
+                        {/* 오른쪽: 완료 여부 상태 뱃지 */}
+                        <div style={{ flexShrink: 0 }}>
+                          {statusBadge}
+                        </div>
                       </div>
                     );
                   })}
@@ -1123,9 +1143,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                             text = 'var(--color-success)';
                             border = '1px solid rgba(16, 185, 129, 0.2)';
                           } else if (label === '진행중') {
-                            bg = 'rgba(99, 102, 241, 0.08)';
+                            bg = 'rgba(6, 78, 59, 0.08)';
                             text = 'var(--color-point)';
-                            border = '1px solid rgba(99, 102, 241, 0.2)';
+                            border = '1px solid rgba(6, 78, 59, 0.2)';
                           }
 
                           return (
@@ -1291,7 +1311,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                         onDrop={() => handleDragDrop(index)}
                         style={{ 
                           borderBottom: isDragOver ? '2px solid var(--color-point)' : '1px solid var(--border-color)',
-                          backgroundColor: isDragging ? 'rgba(79, 70, 229, 0.03)' : isDragOver ? 'rgba(0,0,0,0.01)' : '#ffffff',
+                          backgroundColor: isDragging ? 'rgba(6, 78, 59, 0.04)' : isDragOver ? 'rgba(0,0,0,0.01)' : '#ffffff',
                           opacity: isDragging ? 0.6 : 1,
                           transition: 'background-color 0.15s ease, border-bottom 0.15s ease'
                         }}
@@ -1382,48 +1402,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         </div>
       )}
 
-      {/* 🔐 API Key 긴급 조치 수동 설정란 */}
-      <div className="card" style={{ 
-        marginTop: '3rem', 
-        padding: '1.5rem', 
-        backgroundColor: 'rgba(0,0,0,0.01)', 
-        borderColor: 'var(--border-color)',
-        fontSize: '0.85rem'
-      }}>
-        <h4 style={{ fontSize: '0.9rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-          Gemini API 키 긴급 수동 입력 (동작 안할 시 활용)
-        </h4>
-        <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem', fontSize: '0.8rem', lineHeight: '1.4' }}>
-          환경변수(.env) 주입 오류나 브라우저 캐싱 오류로 인해 문제 생성이 안 되는 현상을 방지하기 위한 안전장치입니다. <br />
-          아래에 발급받으신 Gemini API 키를 직접 붙여넣어 [저장]하시면, 브라우저가 소스 코드 대신 이 키를 직접 사용하여 즉시 작동시킵니다.
-        </p>
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <input
-            type="password"
-            placeholder="이곳에 API 키를 붙여넣으세요"
-            className="input-control"
-            style={{ padding: '0.5rem 0.75rem', fontSize: '0.85rem', maxWidth: '400px' }}
-            value={tempKeyInput}
-            onChange={(e) => setTempKeyInput(e.target.value)}
-          />
-          <button 
-            onClick={handleSaveTempKey} 
-            className="btn btn-primary"
-            style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
-          >
-            임시 키 저장
-          </button>
-          {tempKeyInput && (
-            <button 
-              onClick={handleClearTempKey} 
-              className="btn btn-secondary"
-              style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', color: 'var(--color-error)', borderColor: 'var(--color-error)' }}
-            >
-              초기화 (지우기)
-            </button>
-          )}
-        </div>
-      </div>
     </div>
   );
 };

@@ -521,7 +521,7 @@ export const StudentSolve: React.FC<StudentSolveProps> = ({
           {/* 오답 시 힌트 창 (정답을 맞춘 상태가 아닐 때만 힌트 노출) */}
           {showHint && !isSolved && (
             <div className="card" style={{ 
-              backgroundColor: 'rgba(79, 70, 229, 0.02)', 
+              backgroundColor: 'rgba(6, 78, 59, 0.03)', 
               borderColor: 'var(--color-point-light)',
               padding: '1.5rem',
               animation: 'fadeIn 0.3s ease',

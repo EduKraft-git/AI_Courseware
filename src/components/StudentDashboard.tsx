@@ -167,43 +167,84 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
         </button>
       </header>
 
-      {/* 탭 네비게이션 (모바일 가로 스크롤 지원 및 2줄 깨짐 완벽 방어) */}
-      <div className="tab-scroll-container">
-        <button
-          className={`btn tab-btn-pill ${activeTab === 'today' ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => setActiveTab('today')}
-        >
-          오늘의 아침활동
-        </button>
-        <button
-          className={`btn tab-btn-pill ${activeTab === 'pending' ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => setActiveTab('pending')}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-        >
-          밀린 학습
-          {pendingProblems.length > 0 && (
-            <span style={{
-              backgroundColor: 'var(--color-error)',
-              color: '#ffffff',
-              borderRadius: '50%',
-              width: '18px',
-              height: '18px',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '0.7rem',
-              fontWeight: 700
-            }}>
-              {pendingProblems.length}
-            </span>
-          )}
-        </button>
-        <button
-          className={`btn tab-btn-pill ${activeTab === 'calendar' ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => setActiveTab('calendar')}
-        >
-          학습 달력
-        </button>
+      {/* 🌟 탭 네비게이션(왼쪽) & 오늘 날짜(오른쪽) 한 줄 배치 */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        gap: '1rem', 
+        marginBottom: '1.5rem',
+        flexWrap: 'wrap'
+      }}>
+        {/* 왼쪽: 탭 네비게이션 */}
+        <div className="tab-scroll-container" style={{ margin: 0, width: 'auto' }}>
+          {/* 오늘의 아침활동 탭 (미완료 과제가 있을 시 빨간 원 뱃지로 개수 표시) */}
+          <button
+            className={`btn tab-btn-pill ${activeTab === 'today' ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => setActiveTab('today')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+          >
+            오늘의 아침활동
+            {(() => {
+              const todayUnfinishedCount = todayProblems.filter(p => !p.isCompleted).length;
+              if (todayUnfinishedCount > 0 && !isAbsent) {
+                return (
+                  <span style={{
+                    backgroundColor: 'var(--color-error)',
+                    color: '#ffffff',
+                    borderRadius: '50%',
+                    width: '18px',
+                    height: '18px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '0.7rem',
+                    fontWeight: 700
+                  }}>
+                    {todayUnfinishedCount}
+                  </span>
+                );
+              }
+              return null;
+            })()}
+          </button>
+          <button
+            className={`btn tab-btn-pill ${activeTab === 'pending' ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => setActiveTab('pending')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+          >
+            밀린 학습
+            {pendingProblems.length > 0 && (
+              <span style={{
+                backgroundColor: 'var(--color-error)',
+                color: '#ffffff',
+                borderRadius: '50%',
+                width: '18px',
+                height: '18px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '0.7rem',
+                fontWeight: 700
+              }}>
+                {pendingProblems.length}
+              </span>
+            )}
+          </button>
+          <button
+            className={`btn tab-btn-pill ${activeTab === 'calendar' ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => setActiveTab('calendar')}
+          >
+            학습 달력
+          </button>
+        </div>
+
+        {/* 오른쪽: 오늘 날짜 뱃지 */}
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span className="badge badge-indigo" style={{ padding: '0.45rem 0.9rem', fontSize: '0.85rem', fontWeight: 600 }}>
+            오늘 날짜: {todayStr}
+          </span>
+        </div>
       </div>
 
       {isLoading ? (
@@ -212,20 +253,11 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
         <div>
           {/* 오늘의 아침활동 탭 */}
           {activeTab === 'today' && (
-            <div className="card" style={{ padding: '2.5rem 2rem' }}>
-              <div style={{ marginBottom: '1.5rem' }}>
-                <span className="badge badge-indigo" style={{ marginBottom: '0.5rem' }}>오늘 날짜: {todayStr}</span>
-                <h2>오늘의 아침활동</h2>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                  선생님이 오늘 날짜로 배포하신 수학 학습 미션 목록입니다.
-                </p>
-              </div>
-
+            <div className="card" style={{ padding: '2rem' }}>
               {isAbsent ? (
                 // 결석 안내 화면
                 <div style={{
-                  backgroundColor: 'rgba(245, 158, 11, 0.05)',
-                  border: '1px dashed var(--color-warning)',
+                  backgroundColor: '#fffbeb',
                   borderRadius: '12px',
                   padding: '2.5rem 1.5rem',
                   textAlign: 'center'
@@ -282,13 +314,10 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
               ) : (
                 // 배포된 문제가 없는 경우
                 <div style={{
-                  border: '1px dashed var(--border-color)',
-                  borderRadius: '12px',
-                  padding: '3rem 1.5rem',
+                  padding: '4rem 1.5rem',
                   textAlign: 'center'
                 }}>
-                  <h3 style={{ color: 'var(--text-primary)', marginBottom: '0.5rem' }}>대기 중</h3>
-                  <p style={{ color: 'var(--text-secondary)' }}>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: '1.6' }}>
                     아직 선생님이 배포하신 오늘의 수학 문제가 없습니다.<br />
                     잠시 기다린 후 새로고침하거나 대기해 주세요.
                   </p>
@@ -299,10 +328,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
 
           {/* 밀린 학습 탭 */}
           {activeTab === 'pending' && (
-            <div className="card">
-              <h2 style={{ marginBottom: '0.5rem' }}>다 하지 못했던 아침활동</h2>
-              <p style={{ marginBottom: '1.5rem' }}>이전에 미완료했거나 깜빡하고 제출하지 못한 아침 수학 활동 목록입니다. 언제든 다시 이어서 풀 수 있어요!</p>
-
+            <div className="card" style={{ padding: '2rem' }}>
               {pendingProblems.length > 0 ? (
                 <div className="grid grid-cols-2" style={{ gap: '1.25rem' }}>
                   {pendingProblems.map(prob => (
@@ -339,14 +365,12 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                 </div>
               ) : (
                 <div style={{
-                  border: '1px dashed var(--border-color)',
-                  borderRadius: '12px',
-                  padding: '3rem 1.5rem',
+                  padding: '4rem 1.5rem',
                   textAlign: 'center'
                 }}>
-                  <h3 style={{ color: 'var(--text-primary)', marginBottom: '0.5rem' }}>밀린 학습 없음</h3>
-                  <p style={{ color: 'var(--text-secondary)' }}>
-                    밀린 학습이 하나도 없습니다! 아주 성실하게 완료하셨네요. 참 잘했어요!
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: '1.6' }}>
+                    밀린 학습이 하나도 없습니다!<br />
+                    아주 성실하게 완료하셨네요. 참 잘했어요!
                   </p>
                 </div>
               )}
@@ -414,7 +438,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                       
                       // 1. 이전 달 빈 칸 채우기
                       for (let i = 0; i < firstDayIndex; i++) {
-                        cells.push(<div key={`empty-${i}`} style={{ minHeight: '75px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #f1f5f9' }} />);
+                        cells.push(<div key={`empty-${i}`} style={{ minHeight: '75px', backgroundColor: '#f5f0e8', borderRadius: '8px', opacity: 0.5 }} />);
                       }
                       
                       // 2. 이번 달 일자 채우기
@@ -444,31 +468,26 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                         }
 
                         let cellBg = '#ffffff';
-                        let cellBorder = '1px solid var(--border-color)';
                         let statusText = '';
                         let statusColor = 'var(--text-secondary)';
                         
                         if (isAbsentOnDate) {
                           cellBg = '#fffbeb';
-                          cellBorder = '1px dashed #f59e0b';
                           statusText = absentLabel;
                           statusColor = '#d97706';
                         } else if (hasProblems) {
                           if (allDone) {
-                            cellBg = 'rgba(16, 185, 129, 0.03)';
-                            cellBorder = '1.5px solid var(--color-success)';
+                            cellBg = 'rgba(5, 150, 105, 0.06)';
                             statusText = '완료';
                             statusColor = 'var(--color-success)';
                           } else if (anyAttempt) {
-                            cellBg = 'rgba(79, 70, 229, 0.02)';
-                            cellBorder = '1.5px solid var(--color-point)';
+                            cellBg = 'rgba(6, 78, 59, 0.05)';
                             statusText = '진행중';
                             statusColor = 'var(--color-point)';
                           } else {
-                            cellBg = 'rgba(239, 68, 68, 0.02)';
-                            cellBorder = '1.5px solid #f87171';
+                            cellBg = 'rgba(225, 29, 72, 0.04)';
                             statusText = '미달성';
-                            statusColor = '#ef4444';
+                            statusColor = 'var(--color-error)';
                           }
                         }
 
@@ -483,13 +502,12 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                             style={{ 
                               minHeight: '75px', 
                               backgroundColor: cellBg, 
-                              border: cellBorder, 
                               borderRadius: '8px', 
                               padding: '0.35rem 0.25rem',
                               display: 'flex',
                               flexDirection: 'column',
                               justifyContent: 'space-between',
-                              boxShadow: '0 1px 2px rgba(0,0,0,0.01)'
+                              boxShadow: '0 1px 4px rgba(15, 23, 42, 0.03)'
                             }}
                           >
                             <span style={{ fontWeight: 700, fontSize: '0.8rem', color: dayNumColor }}>
@@ -521,7 +539,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                                     
                                     const pStatusText = pIsDone ? '완료' : pAnyAttempt ? '진행' : '미작';
                                     const pStatusColor = pIsDone ? 'var(--color-success)' : pAnyAttempt ? 'var(--color-point)' : '#6b7280';
-                                    const pStatusBg = pIsDone ? 'rgba(16, 185, 129, 0.08)' : pAnyAttempt ? 'rgba(79, 70, 229, 0.08)' : '#f3f4f6';
+                                    const pStatusBg = pIsDone ? 'rgba(16, 185, 129, 0.08)' : pAnyAttempt ? 'rgba(6, 78, 59, 0.08)' : '#f3f4f6';
 
                                     return (
                                       <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.25rem', minWidth: 0 }}>
