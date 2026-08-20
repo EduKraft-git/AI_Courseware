@@ -46,6 +46,11 @@
   overflow-wrap: break-word;
 }
 
+/* 🌟 모든 입력창, 선택창(select), 버튼에 기본 브랜드 폰트 강제 상속 */
+input, select, textarea, button {
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif !important;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -147,7 +152,7 @@ body {
   flex-direction: column;
   justify-content: flex-start;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   word-break: keep-all;
 }
 
@@ -367,7 +372,7 @@ p {
   color: var(--color-success);
 }
 
-/* 🌟 탭 네비게이션 (선 없는 플로팅 탭 필) */
+/* 🌟 탭 네비게이션 (스마트 동적 스크롤 페이드 블러 마스크) */
 .tab-scroll-container {
   display: flex;
   gap: 0.5rem;
@@ -378,6 +383,31 @@ p {
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none; /* Firefox */
   width: 100%;
+  transition: -webkit-mask-image 0.2s ease, mask-image 0.2s ease;
+}
+
+/* 1. 스크롤 불필요하거나 전체 노출 시: 블러 없음 */
+.tab-scroll-container.mask-none {
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+
+/* 2. 맨 왼쪽 끝(처음)에 있을 때: 왼쪽은 100% 선명, 오른쪽만 블러 페이드 */
+.tab-scroll-container.mask-right {
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 32px), transparent 100%) !important;
+  mask-image: linear-gradient(to right, black calc(100% - 32px), transparent 100%) !important;
+}
+
+/* 3. 맨 오른쪽 끝(마지막)에 있을 때: 오른쪽은 100% 선명, 왼쪽만 블러 페이드 */
+.tab-scroll-container.mask-left {
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 32px, black 100%) !important;
+  mask-image: linear-gradient(to right, transparent 0%, black 32px, black 100%) !important;
+}
+
+/* 4. 중간에서 스크롤 중일 때: 좌우 양쪽 모두 블러 페이드 */
+.tab-scroll-container.mask-both {
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 28px, black calc(100% - 28px), transparent 100%) !important;
+  mask-image: linear-gradient(to right, transparent 0%, black 28px, black calc(100% - 28px), transparent 100%) !important;
 }
 
 .tab-scroll-container::-webkit-scrollbar {
@@ -426,7 +456,11 @@ p {
 }
 
 .table-responsive table {
-  min-width: 580px;
+  width: 100%;
+}
+
+.table-wide-scroll table {
+  min-width: 600px;
 }
 
 /* 📱 모바일 반응형 처리 */
@@ -516,5 +550,183 @@ p {
 
   .card {
     padding: 1rem 0.85rem;
+  }
+}
+
+/* ℹ️ 인포메이션 툴팁 & 팝오버 컴포넌트 */
+.info-tooltip-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.4rem;
+  vertical-align: middle;
+}
+
+.info-tooltip-btn {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.15s ease;
+  line-height: 1;
+  user-select: none;
+}
+
+.info-tooltip-btn:hover,
+.info-tooltip-btn:focus {
+  border-color: var(--color-point);
+  color: var(--color-point);
+  background-color: rgba(6, 78, 59, 0.08);
+}
+
+.info-tooltip-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #1e293b;
+  color: #ffffff;
+  padding: 0.6rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 400;
+  line-height: 1.5;
+  white-space: normal;
+  word-break: keep-all;
+  width: max-content;
+  max-width: min(260px, calc(100vw - 3rem));
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  animation: tooltipFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* 말풍선 상단 화살표 꼬리 */
+.info-tooltip-popover::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 0 5px 5px 5px;
+  border-style: solid;
+  border-color: transparent transparent #1e293b transparent;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -4px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@media (max-width: 480px) {
+  .info-tooltip-popover {
+    left: -10px;
+    transform: none;
+    max-width: min(240px, calc(100vw - 2.5rem));
+    font-size: 0.75rem;
+    padding: 0.5rem 0.75rem;
+  }
+  
+  .info-tooltip-popover::before {
+    left: 18px;
+    transform: none;
+  }
+  
+  @keyframes tooltipFadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+/* 🎛️ 관리자 상단 필터 컨트롤 바 (학급 반 & 기준 날짜) */
+.admin-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.admin-filter-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+@media (max-width: 640px) {
+  .admin-filter-bar {
+    width: 100% !important;
+    margin-left: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 0.6rem !important;
+    background-color: var(--bg-card);
+    padding: 0.75rem 0.85rem;
+    border-radius: 12px;
+    box-shadow: var(--shadow-card);
+    box-sizing: border-box;
+  }
+
+  .admin-filter-item {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.35rem !important;
+    min-width: 0 !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+  }
+
+  .admin-filter-item:last-child {
+    flex: 1 1 auto !important;
+  }
+
+  .admin-filter-item span {
+    font-size: 0.78rem !important;
+    font-weight: 700 !important;
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    flex-shrink: 0 !important;
+    display: inline-block !important;
+    min-width: max-content !important;
+  }
+
+  .admin-filter-item select {
+    width: auto !important;
+    min-width: 65px !important;
+    max-width: 80px !important;
+    padding: 0.4rem 0.3rem !important;
+    font-size: 0.8rem !important;
+    border-radius: 6px !important;
+  }
+
+  .admin-filter-item input[type="date"] {
+    width: 100% !important;
+    min-width: 0 !important;
+    padding: 0.4rem 0.3rem !important;
+    font-size: 0.82rem !important;
+    border-radius: 6px !important;
+    letter-spacing: -0.03em;
   }
 }

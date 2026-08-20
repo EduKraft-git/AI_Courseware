@@ -11,6 +11,7 @@ import {
   getAllStudentSubmissions
 } from '../db';
 import { Student, Problem, Attendance, Submission } from '../types';
+import { useScrollFadeMask } from '../hooks/useScrollFadeMask';
 
 interface StudentDashboardProps {
   student: Student;
@@ -24,11 +25,46 @@ interface ProblemWithStatus extends Problem {
   totalQuestions: number;
 }
 
+// ℹ️ 타이틀 옆 미니 인포메이션 툴팁 팝오버 컴포넌트
+const InfoTooltip: React.FC<{ text: React.ReactNode }> = ({ text }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <span 
+      className="info-tooltip-wrapper"
+      onMouseEnter={() => setIsOpen(true)}
+      onMouseLeave={() => setIsOpen(false)}
+    >
+      <button
+        type="button"
+        className="info-tooltip-btn"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsOpen(!isOpen);
+        }}
+        onBlur={() => setIsOpen(false)}
+        aria-label="안내 도움말"
+      >
+        i
+      </button>
+      {isOpen && (
+        <div className="info-tooltip-popover">
+          {text}
+        </div>
+      )}
+    </span>
+  );
+};
+
 export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   student,
   onLogout,
   onStartSolve,
 }) => {
+  // 🌟 상단 탭 스마트 동적 페이드 블러 훅
+  const { scrollRef: tabScrollRef, fadeMask: tabFadeMask } = useScrollFadeMask();
+
   const [activeTab, setActiveTab] = useState<'today' | 'pending' | 'calendar'>('today');
   const [todayProblems, setTodayProblems] = useState<ProblemWithStatus[]>([]);
   const [isAbsent, setIsAbsent] = useState(false);
@@ -176,8 +212,8 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
         marginBottom: '1.5rem',
         flexWrap: 'wrap'
       }}>
-        {/* 왼쪽: 탭 네비게이션 */}
-        <div className="tab-scroll-container" style={{ margin: 0, width: 'auto' }}>
+        {/* 왼쪽: 탭 네비게이션 (스마트 동적 스크롤 페이드 블러) */}
+        <div ref={tabScrollRef} className={`tab-scroll-container mask-${tabFadeMask}`} style={{ margin: 0, width: 'auto' }}>
           {/* 오늘의 아침활동 탭 (미완료 과제가 있을 시 빨간 원 뱃지로 개수 표시) */}
           <button
             className={`btn tab-btn-pill ${activeTab === 'today' ? 'btn-primary' : 'btn-secondary'}`}
@@ -381,11 +417,9 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
           {activeTab === 'calendar' && (
             <div className="card" style={{ padding: '1.5rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.5rem' }}>
-                <div>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
                   <h2 style={{ fontSize: '1.3rem', fontWeight: 700, margin: 0 }}>학습 달력</h2>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                    매일의 아침활동 달성 상태와 출결 이력을 확인할 수 있습니다.
-                  </p>
+                  <InfoTooltip text="매일의 아침활동 달성 상태와 출결 이력을 확인할 수 있습니다." />
                 </div>
                 
                 {/* 월 네비게이션 */}
@@ -412,8 +446,17 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                 <div style={{ textAlign: 'center', padding: '5rem' }}>달성 현황을 분석하고 있습니다...</div>
               ) : (
                 <div>
-                  {/* 달력 요일 헤더 */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '0.25rem', textAlign: 'center', fontWeight: 700, fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+                  {/* 달력 요일 헤더 (7열 균등 고정) */}
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', 
+                    gap: '0.25rem', 
+                    textAlign: 'center', 
+                    fontWeight: 700, 
+                    fontSize: '0.8rem', 
+                    color: 'var(--text-secondary)', 
+                    marginBottom: '0.5rem' 
+                  }}>
                     <div style={{ color: '#ef4444' }}>일</div>
                     <div>월</div>
                     <div>화</div>
@@ -423,8 +466,12 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                     <div style={{ color: 'var(--color-point)' }}>토</div>
                   </div>
 
-                  {/* 달력 일자 그리드 */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '0.25rem' }}>
+                  {/* 달력 일자 그리드 (7열 완전 균등 고정 lock) */}
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', 
+                    gap: '0.25rem' 
+                  }}>
                     {(() => {
                       const year = calendarDate.getFullYear();
                       const month = calendarDate.getMonth();
@@ -438,7 +485,18 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                       
                       // 1. 이전 달 빈 칸 채우기
                       for (let i = 0; i < firstDayIndex; i++) {
-                        cells.push(<div key={`empty-${i}`} style={{ minHeight: '75px', backgroundColor: '#f5f0e8', borderRadius: '8px', opacity: 0.5 }} />);
+                        cells.push(
+                          <div 
+                            key={`empty-${i}`} 
+                            style={{ 
+                              minHeight: '75px', 
+                              backgroundColor: '#f5f0e8', 
+                              borderRadius: '8px', 
+                              opacity: 0.5,
+                              minWidth: 0
+                            }} 
+                          />
+                        );
                       }
                       
                       // 2. 이번 달 일자 채우기
@@ -507,29 +565,34 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                               display: 'flex',
                               flexDirection: 'column',
                               justifyContent: 'space-between',
-                              boxShadow: '0 1px 4px rgba(15, 23, 42, 0.03)'
+                              boxShadow: '0 1px 4px rgba(15, 23, 42, 0.03)',
+                              minWidth: 0,
+                              overflow: 'hidden'
                             }}
                           >
                             <span style={{ fontWeight: 700, fontSize: '0.8rem', color: dayNumColor }}>
                               {day}
                             </span>
                             
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', overflow: 'hidden', minWidth: 0 }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', overflow: 'hidden', minWidth: 0, width: '100%' }}>
                               {isAbsentOnDate ? (
                                 <span style={{ 
-                                  fontSize: '0.7rem', 
+                                  fontSize: '0.68rem', 
                                   fontWeight: 800, 
                                   color: statusColor,
                                   backgroundColor: 'rgba(217, 119, 6, 0.08)',
-                                  padding: '0.15rem 0.35rem',
-                                  borderRadius: '5px',
+                                  padding: '0.15rem 0.25rem',
+                                  borderRadius: '4px',
                                   textAlign: 'center',
-                                  display: 'inline-block'
+                                  display: 'block',
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis'
                                 }}>
                                   {statusText}
                                 </span>
                               ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', overflow: 'hidden' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', overflow: 'hidden', minWidth: 0, width: '100%' }}>
                                   {dateProblems.map((p) => {
                                     const pSubs = calendarSubmissions.filter(s => s.problemId === p.id && s.questionId !== 0);
                                     const pCompletedCount = pSubs.filter(s => s.isCompleted).length;
@@ -542,27 +605,28 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                                     const pStatusBg = pIsDone ? 'rgba(16, 185, 129, 0.08)' : pAnyAttempt ? 'rgba(6, 78, 59, 0.08)' : '#f3f4f6';
 
                                     return (
-                                      <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.25rem', minWidth: 0 }}>
+                                      <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.15rem', minWidth: 0, width: '100%' }}>
                                         <span 
                                           style={{ 
-                                            fontSize: '0.65rem', 
+                                            fontSize: '0.62rem', 
                                             color: 'var(--text-muted)', 
                                             overflow: 'hidden', 
                                             textOverflow: 'ellipsis', 
                                             whiteSpace: 'nowrap', 
                                             fontWeight: 600,
-                                            flex: 1
+                                            flex: 1,
+                                            minWidth: 0
                                           }} 
                                           title={p.chapter}
                                         >
                                           {p.chapter}
                                         </span>
                                         <span style={{ 
-                                          fontSize: '0.62rem', 
+                                          fontSize: '0.6rem', 
                                           fontWeight: 800, 
                                           color: pStatusColor,
                                           backgroundColor: pStatusBg,
-                                          padding: '0.1rem 0.25rem',
+                                          padding: '0.1rem 0.2rem',
                                           borderRadius: '3px',
                                           whiteSpace: 'nowrap',
                                           flexShrink: 0
@@ -581,7 +645,18 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                       
                       const remainingCells = 42 - cells.length;
                       for (let i = 0; i < remainingCells; i++) {
-                        cells.push(<div key={`next-empty-${i}`} style={{ height: '95px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #f1f5f9' }} />);
+                        cells.push(
+                          <div 
+                            key={`next-empty-${i}`} 
+                            style={{ 
+                              minHeight: '75px', 
+                              backgroundColor: '#f5f0e8', 
+                              borderRadius: '8px', 
+                              opacity: 0.5,
+                              minWidth: 0
+                            }} 
+                          />
+                        );
                       }
                       
                       return cells;

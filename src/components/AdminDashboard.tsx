@@ -24,12 +24,48 @@ import {
 import { Student, Problem, Submission, Attendance, SchoolClass } from '../types';
 import { AdminCreateProblem } from './AdminCreateProblem';
 import { AdminAIReport } from './AdminAIReport';
+import { useScrollFadeMask } from '../hooks/useScrollFadeMask';
+
+// ℹ️ 타이틀 옆 미니 인포메이션 툴팁 팝오버 컴포넌트
+const InfoTooltip: React.FC<{ text: React.ReactNode }> = ({ text }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <span 
+      className="info-tooltip-wrapper"
+      onMouseEnter={() => setIsOpen(true)}
+      onMouseLeave={() => setIsOpen(false)}
+    >
+      <button
+        type="button"
+        className="info-tooltip-btn"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsOpen(!isOpen);
+        }}
+        onBlur={() => setIsOpen(false)}
+        aria-label="안내 도움말"
+      >
+        i
+      </button>
+      {isOpen && (
+        <div className="info-tooltip-popover">
+          {text}
+        </div>
+      )}
+    </span>
+  );
+};
 
 interface AdminDashboardProps {
   onLogout: () => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
+  // 🌟 상단 탭 스마트 페이드 블러 제어 훅
+  const { scrollRef: tabScrollRef, fadeMask: tabFadeMask } = useScrollFadeMask();
+
   // 메인 화면 상태 제어
   const [activeTab, setActiveTab] = useState<'status' | 'students' | 'problems' | 'monthly_grid' | 'classes'>('status');
   const [activeView, setActiveView] = useState<'main' | 'create_problem' | 'ai_report'>('main');
@@ -472,12 +508,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     <div className="app-container">
       {/* 교사용 대시보드 헤더 */}
       <header className="app-header" style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'nowrap', width: '100%' }}>
-        <div className="app-logo" style={{ display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
+        <div className="app-logo" style={{ display: 'flex', alignItems: 'center', whiteSpace: 'nowrap', fontSize: '1.15rem' }}>
           <div className="logo-dot" style={{ backgroundColor: 'var(--color-point)' }}></div>
-          아침활동 코스웨어 관리자 대시보드
+          관리자 대시보드
         </div>
-        <div style={{ display: 'flex', gap: '0.75rem', flexShrink: 0 }}>
-          <button onClick={onLogout} className="btn btn-secondary" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', flexShrink: 0, marginLeft: 'auto' }}>
+          <button onClick={onLogout} className="btn btn-secondary" style={{ padding: '0.45rem 0.85rem', fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
             로그아웃
           </button>
         </div>
@@ -493,8 +529,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         marginBottom: '1.5rem',
         paddingBottom: '0.25rem'
       }}>
-        {/* 왼쪽: 탭 전환 (모바일 가로 스크롤) */}
-        <div className="tab-scroll-container" style={{ margin: 0, border: 'none', padding: 0, width: 'auto', flex: '0 1 auto' }}>
+        {/* 왼쪽: 탭 전환 (모바일 가로 스크롤 및 스마트 동적 페이드 블러) */}
+        <div 
+          ref={tabScrollRef} 
+          className={`tab-scroll-container mask-${tabFadeMask}`} 
+          style={{ margin: 0, border: 'none', padding: 0, width: 'auto', flex: '0 1 auto' }}
+        >
           <button
             className={`btn tab-btn-pill ${activeTab === 'status' ? 'btn-primary' : 'btn-secondary'}`}
             onClick={() => setActiveTab('status')}
@@ -529,12 +569,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
         {/* 오른쪽: 기준 날짜 & 반 선택 (현황판 및 학생 관리 탭에서만 활성화) */}
         {(activeTab === 'status' || activeTab === 'students') && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginLeft: 'auto', flexShrink: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>학급 반:</span>
+          <div className="admin-filter-bar">
+            <div className="admin-filter-item">
+              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap', flexShrink: 0, display: 'inline-block' }}>학급반:</span>
               <select
                 className="input-control"
-                style={{ padding: '0.4rem 0.8rem', width: '110px', fontSize: '0.85rem', borderRadius: '8px' }}
+                style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem', borderRadius: '8px' }}
                 value={classId}
                 onChange={(e) => setClassId(e.target.value)}
               >
@@ -544,12 +584,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               </select>
             </div>
             
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>기준 날짜:</span>
+            <div className="admin-filter-item">
+              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap', flexShrink: 0, display: 'inline-block' }}>기준날짜:</span>
               <input 
                 type="date" 
                 className="input-control" 
-                style={{ padding: '0.4rem 0.8rem', width: '145px', fontSize: '0.85rem' }}
+                style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
               />
@@ -559,12 +599,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
         {/* 월간 진도표 조작 컨트롤 (월간 진도표 탭에서만 활성화) */}
         {activeTab === 'monthly_grid' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginLeft: 'auto', flexShrink: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>학급 반:</span>
+          <div className="admin-filter-bar">
+            <div className="admin-filter-item">
+              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap', flexShrink: 0, display: 'inline-block' }}>학급반:</span>
               <select
                 className="input-control"
-                style={{ padding: '0.4rem 0.8rem', width: '110px', fontSize: '0.85rem', borderRadius: '8px' }}
+                style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem', borderRadius: '8px' }}
                 value={classId}
                 onChange={(e) => setClassId(e.target.value)}
               >
@@ -574,19 +614,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               </select>
             </div>
             
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', backgroundColor: '#f4efe6', padding: '0.35rem 0.75rem', borderRadius: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', backgroundColor: '#f4efe6', padding: '0.35rem 0.65rem', borderRadius: '8px', flex: '1 1 auto', justifyContent: 'center' }}>
               <button 
                 onClick={() => setMonthlyGridDate(new Date(monthlyGridDate.getFullYear(), monthlyGridDate.getMonth() - 1, 1))}
-                style={{ border: 'none', background: 'none', cursor: 'pointer', fontWeight: 700, padding: '0 0.4rem', color: 'var(--text-primary)' }}
+                style={{ border: 'none', background: 'none', cursor: 'pointer', fontWeight: 700, padding: '0 0.35rem', color: 'var(--text-primary)' }}
               >
                 ◀
               </button>
-              <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)', minWidth: '85px', textAlign: 'center' }}>
+              <span style={{ fontWeight: 700, fontSize: '0.82rem', color: 'var(--text-primary)', minWidth: '80px', textAlign: 'center' }}>
                 {monthlyGridDate.getFullYear()}년 {monthlyGridDate.getMonth() + 1}월
               </span>
               <button 
                 onClick={() => setMonthlyGridDate(new Date(monthlyGridDate.getFullYear(), monthlyGridDate.getMonth() + 1, 1))}
-                style={{ border: 'none', background: 'none', cursor: 'pointer', fontWeight: 700, padding: '0 0.4rem', color: 'var(--text-primary)' }}
+                style={{ border: 'none', background: 'none', cursor: 'pointer', fontWeight: 700, padding: '0 0.35rem', color: 'var(--text-primary)' }}
               >
                 ▶
               </button>
@@ -912,7 +952,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         <div className="grid grid-cols-2" style={{ gap: '2rem', alignItems: 'start' }}>
           {/* 왼쪽: 학생 신규 등록 */}
           <div className="card" style={{ padding: '1.5rem' }}>
-            <h3 style={{ marginBottom: '1.25rem' }}>신규 학생 등록</h3>
+            <h3 style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center' }}>
+              신규 학생 등록
+              <InfoTooltip text="우리 반에 새로운 학생 번호와 이름을 입력하여 추가합니다." />
+            </h3>
             <form onSubmit={handleAddStudent}>
               <div className="form-group">
                 <label className="form-label">학급 번호</label>
@@ -943,19 +986,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
           {/* 오른쪽: 학생 목록 및 출결(결석) 토글 설정 */}
           <div className="card" style={{ padding: '1.5rem' }}>
-            <h3 style={{ marginBottom: '0.25rem' }}>우리 반 출결 및 관리</h3>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-              선택된 날짜(<strong>{selectedDate}</strong>) 기준 결석 학생을 체크하거나 정보를 수정할 수 있습니다.
-            </p>
+            <h3 style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center' }}>
+              우리 반 출결 및 관리
+              <InfoTooltip text={`선택된 날짜(${selectedDate}) 기준 결석 학생을 체크하거나 정보를 수정할 수 있습니다.`} />
+            </h3>
 
-            <div className="table-responsive" style={{ maxHeight: '400px', overflowY: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+            <div className="table-responsive" style={{ maxHeight: '440px', overflowY: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
                 <thead>
-                  <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left' }}>
-                    <th style={{ padding: '0.5rem', width: '70px' }}>번호</th>
-                    <th style={{ padding: '0.5rem', width: '30%' }}>이름</th>
-                    <th style={{ padding: '0.5rem' }}>출결 설정 ({selectedDate})</th>
-                    <th style={{ padding: '0.5rem', textAlign: 'center', width: '50px' }}>관리</th>
+                  <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left', backgroundColor: '#fcfaf6' }}>
+                    <th style={{ padding: '0.6rem 0.4rem', width: '55px', whiteSpace: 'nowrap' }}>번호</th>
+                    <th style={{ padding: '0.6rem 0.4rem', width: '80px', whiteSpace: 'nowrap' }}>이름</th>
+                    <th style={{ padding: '0.6rem 0.4rem' }}>출결 설정 ({selectedDate})</th>
+                    <th style={{ padding: '0.6rem 0.4rem', textAlign: 'center', width: '50px', whiteSpace: 'nowrap' }}>관리</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -966,14 +1009,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
                     return (
                       <tr key={student.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                        <td style={{ padding: '0.5rem', fontWeight: 600, width: '70px' }}>{student.id}번</td>
-                        <td style={{ padding: '0.5rem', width: '30%', maxWidth: '0' }}>
+                        <td style={{ padding: '0.6rem 0.4rem', fontWeight: 600, width: '55px', whiteSpace: 'nowrap' }}>
+                          {student.id}번
+                        </td>
+                        <td style={{ padding: '0.6rem 0.4rem', width: '80px', whiteSpace: 'nowrap' }}>
                           {editingStudentId === student.id ? (
                             <input
                               type="text"
                               className="input-control"
                               style={{
-                                padding: '0.2rem 0.5rem',
+                                padding: '0.2rem 0.4rem',
                                 fontSize: '0.85rem',
                                 width: '100%',
                                 boxSizing: 'border-box',
@@ -990,7 +1035,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                             />
                           ) : (
                             <span 
-                              style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                              style={{ cursor: 'pointer', textDecoration: 'underline', fontWeight: 500 }}
                               title="클릭하여 이름 수정"
                               onClick={() => {
                                 setEditingStudentId(student.id);
@@ -1001,12 +1046,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                             </span>
                           )}
                         </td>
-                        <td style={{ padding: '0.5rem' }}>
+                        <td style={{ padding: '0.6rem 0.4rem' }}>
                           <select
                             className="input-control"
                             style={{ 
-                              padding: '0.2rem 0.5rem', 
-                              fontSize: '0.8rem',
+                              padding: '0.3rem 0.5rem', 
+                              fontSize: '0.82rem',
+                              width: '100%',
+                              boxSizing: 'border-box',
                               borderColor: currentStatus !== 'present' ? '#d97706' : 'var(--border-color)',
                               color: currentStatus !== 'present' ? '#d97706' : 'var(--text-primary)',
                               fontWeight: currentStatus !== 'present' ? 600 : 400
@@ -1022,10 +1069,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                             <option value="absent_approved">출석인정 결석</option>
                           </select>
                         </td>
-                        <td style={{ padding: '0.5rem', textAlign: 'center' }}>
+                        <td style={{ padding: '0.6rem 0.4rem', textAlign: 'center', width: '50px', whiteSpace: 'nowrap' }}>
                           <button
                             onClick={() => handleDeleteStudent(student.id, student.name)}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem' }}
+                            style={{ 
+                              background: 'none', 
+                              border: 'none', 
+                              cursor: 'pointer', 
+                              fontSize: '0.8rem', 
+                              color: 'var(--color-error)',
+                              padding: '0.2rem 0.4rem',
+                              fontWeight: 500
+                            }}
                             title="학생 삭제"
                           >
                             삭제
@@ -1046,11 +1101,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       {/* ========================================== */}
       {activeTab === 'monthly_grid' && (
         <div className="card" style={{ padding: '2rem' }}>
-          <div style={{ marginBottom: '1.5rem' }}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>월간 학급 진도 현황표</h2>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-              선택한 월에 문제가 배포된 날짜별로 모든 학생들의 아침활동 학습 완료 여부를 한눈에 조회합니다.
-            </p>
+          <div style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center' }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>
+              월간 학급 진도 현황표
+            </h2>
+            <InfoTooltip text="선택한 월에 문제가 배포된 날짜별로 모든 학생들의 아침활동 학습 완료 여부를 한눈에 조회합니다." />
           </div>
 
           {isLoadingMonthly ? (
@@ -1065,7 +1120,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>선택한 월에 배포된 아침활동 수학 과제가 없습니다.</p>
             </div>
           ) : (
-            <div className="table-responsive" style={{ border: '1px solid var(--border-color)', borderRadius: '12px', boxShadow: 'var(--shadow-bento)' }}>
+            <div className="table-responsive table-wide-scroll" style={{ border: '1px solid var(--border-color)', borderRadius: '12px', boxShadow: 'var(--shadow-bento)' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                 <thead>
                   <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1.5px solid var(--border-color)' }}>
@@ -1246,7 +1301,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         <div className="grid grid-cols-2" style={{ gap: '2rem', alignItems: 'start' }}>
           {/* ① 신규 학급 반 개설 */}
           <div className="card" style={{ padding: '1.5rem' }}>
-            <h3 style={{ marginBottom: '1.25rem' }}>신규 학급 반 개설</h3>
+            <h3 style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center' }}>
+              신규 학급 반 개설
+              <InfoTooltip text={
+                <div>
+                  새로 개설된 반은 즉시 학생 로그인창과 문제 배포창에 반영됩니다.<br />
+                  (예: "6학년 1반" 또는 "기초학력 2반")
+                </div>
+              } />
+            </h3>
             <form onSubmit={handleAddClassSubmit}>
               <div className="form-group" style={{ marginBottom: '1.5rem' }}>
                 <label className="form-label">학년 반 명칭</label>
@@ -1258,10 +1321,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   onChange={(e) => setNewClassName(e.target.value)}
                   required
                 />
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.4rem', lineHeight: '1.4' }}>
-                  * 새로 개설된 반은 즉시 학생 로그인창과 문제 배포창에 반영됩니다.<br />
-                  * 예: "6학년 1반" 또는 "기초학력 2반" 형태로 입력하시면 좋습니다.
-                </p>
               </div>
               <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
                 새 학년반 개설하기
@@ -1271,18 +1330,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
           {/* ② 개설된 학급 반 목록 및 삭제 */}
           <div className="card" style={{ padding: '1.5rem' }}>
-            <h3 style={{ marginBottom: '0.25rem' }}>개설 학급 목록</h3>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-              현재 우리 학교 아침활동에 개설되어 가동 중인 학급 반 목록입니다.
-            </p>
+            <h3 style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center' }}>
+              개설 학급 목록
+              <InfoTooltip text="현재 우리 학교 아침활동에 개설되어 가동 중인 학급 반 목록입니다." />
+            </h3>
 
-            <div className="table-responsive" style={{ maxHeight: '400px', overflowY: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+            <div className="table-responsive" style={{ maxHeight: '440px', overflowY: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
                 <thead>
-                  <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left' }}>
-                    <th style={{ padding: '0.5rem', width: '40px' }}></th>
-                    <th style={{ padding: '0.5rem', width: '70%' }}>학급 반 이름</th>
-                    <th style={{ padding: '0.5rem', textAlign: 'center', width: '80px' }}>관리</th>
+                  <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left', backgroundColor: '#fcfaf6' }}>
+                    <th style={{ padding: '0.6rem 0.35rem', width: '36px', textAlign: 'center' }}></th>
+                    <th style={{ padding: '0.6rem 0.5rem' }}>학급 반 이름</th>
+                    <th style={{ padding: '0.6rem 0.35rem', textAlign: 'center', width: '60px', whiteSpace: 'nowrap' }}>관리</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1319,13 +1378,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                         {/* ① 드래그 핸들 */}
                         <td 
                           style={{ 
-                            padding: '0.75rem 0.5rem', 
-                            width: '40px', 
+                            padding: '0.6rem 0.35rem', 
+                            width: '36px', 
                             textAlign: 'center', 
                             cursor: 'grab', 
                             color: 'var(--text-muted)', 
                             userSelect: 'none', 
-                            fontSize: '1.1rem' 
+                            fontSize: '1rem' 
                           }}
                           title="드래그하여 순서 조정"
                         >
@@ -1333,8 +1392,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                         </td>
 
                         {/* ② 학급 반 명칭 */}
-                        <td style={{ padding: '0 0.5rem', fontWeight: 600, verticalAlign: 'middle' }}>
-                          <div style={{ height: '40px', display: 'flex', alignItems: 'center', boxSizing: 'border-box' }}>
+                        <td style={{ padding: '0.4rem 0.5rem', fontWeight: 600, verticalAlign: 'middle' }}>
+                          <div style={{ minHeight: '36px', display: 'flex', alignItems: 'center', boxSizing: 'border-box' }}>
                             {editingClassId === c.id ? (
                               <input
                                 type="text"
@@ -1342,10 +1401,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                                 style={{
                                   padding: '0 0.4rem',
                                   margin: 0,
-                                  fontSize: '0.9rem',
+                                  fontSize: '0.88rem',
                                   fontWeight: 600,
-                                  height: '26px',
-                                  lineHeight: '26px',
+                                  height: '28px',
+                                  lineHeight: '28px',
                                   boxSizing: 'border-box',
                                   border: '1px solid var(--color-point)',
                                   borderRadius: '4px',
@@ -1377,15 +1436,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                         </td>
 
                         {/* ③ 삭제 버튼 */}
-                        <td style={{ padding: '0.5rem', textAlign: 'center' }}>
+                        <td style={{ padding: '0.4rem 0.35rem', textAlign: 'center', width: '60px', whiteSpace: 'nowrap' }}>
                           <button
                             onClick={() => handleDeleteClassClick(c.id, c.name)}
                             className="btn btn-secondary"
                             style={{ 
-                              padding: '0.25rem 0.5rem', 
-                              fontSize: '0.75rem', 
+                              padding: '0.2rem 0.45rem', 
+                              fontSize: '0.78rem', 
                               color: 'var(--color-error)', 
-                              borderColor: 'var(--color-error)' 
+                              borderColor: 'rgba(239, 68, 68, 0.3)' 
                             }}
                             title="학급 삭제"
                           >
