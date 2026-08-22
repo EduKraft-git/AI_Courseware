@@ -184,6 +184,45 @@ export const getDailyProblems = async (date: string, classId?: string): Promise<
     : daily;
 };
 
+// 🌟 특정 날짜의 배포 문제 실시간 구독 (새 문제 배포/수정/삭제 시 로그인된 학생 화면에 0.1초 즉시 동기화)
+export const subscribeDailyProblems = (
+  date: string,
+  classId: string | undefined,
+  callback: (problems: Problem[]) => void
+): (() => void) => {
+  if (isFirebaseActive()) {
+    try {
+      const q = query(collection(db, 'problems'), where('date', '==', date));
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const list: Problem[] = [];
+        querySnapshot.forEach((doc) => {
+          const data = doc.data() as Omit<Problem, 'id'>;
+          const targetClasses = data.targetClasses || ['1반'];
+          if (!classId || targetClasses.includes(classId)) {
+            list.push({ id: doc.id, ...data } as Problem);
+          }
+        });
+        callback(list);
+      }, (error) => {
+        console.error('실시간 문제 구독 에러:', error);
+      });
+      return unsubscribe;
+    } catch (e) {
+      console.error('Firebase DB 실시간 구독 에러', e);
+    }
+  }
+
+  // 로컬 스토리지 백업 모드 (초기 1회 호출)
+  const localData = localStorage.getItem('mock_problems');
+  const problems: Problem[] = localData ? JSON.parse(localData) : [];
+  const daily = problems.filter(p => p.date === date);
+  const filtered = classId 
+    ? daily.filter(p => (p.targetClasses || ['1반']).includes(classId)) 
+    : daily;
+  callback(filtered);
+  return () => {};
+};
+
 // 문제 배포 및 수정 (고유 ID 또는 날짜가 ID가 됩니다)
 export const saveProblem = async (problem: Problem): Promise<void> => {
   const docId = problem.id || `${problem.date}_${Date.now()}`;

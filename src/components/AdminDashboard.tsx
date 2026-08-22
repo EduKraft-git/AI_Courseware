@@ -87,6 +87,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [dailyAttendance, setDailyAttendance] = useState<Attendance[]>([]);
   const [dailyProblems, setDailyProblems] = useState<Problem[]>([]); // 오늘 날짜 배포된 전체 문제 세트들
   const [selectedProblemId, setSelectedProblemId] = useState<string | null>(null); // 현재 모니터링 중인 문제 세트 ID
+  const [editProblemId, setEditProblemId] = useState<string | null>(null); // 문제 출제/수정 뷰로 넘길 고유 ID (null이면 신규 출제 모드)
   const [activeProblem, setActiveProblem] = useState<Problem | null>(null);
   const [problemsList, setProblemsList] = useState<Problem[]>([]); // 배포된 문제 목록
   const [onlineStatuses, setOnlineStatuses] = useState<OnlineStatus[]>([]); // 실시간 온라인 상태 목록
@@ -491,9 +492,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     return (
       <AdminCreateProblem 
         initialDate={selectedDate} 
-        initialProblemId={selectedProblemId} 
+        initialProblemId={editProblemId} 
         onBack={() => {
-          setSelectedProblemId(null);
+          setEditProblemId(null);
           setActiveView('main');
         }} 
       />
@@ -687,26 +688,45 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 </div>
 
                 {activeProblem ? (
-                  <button 
-                    onClick={() => setActiveView('create_problem')} 
-                    className="btn"
-                    style={{ 
-                      fontSize: '0.8rem', 
-                      padding: '0.4rem 0.85rem', 
-                      backgroundColor: '#ffffff', 
-                      color: 'var(--text-primary)', 
-                      border: 'none', 
-                      borderRadius: '8px',
-                      fontWeight: 600,
-                      boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
-                    }}
-                  >
-                    배포 문제 수정/조회
-                  </button>
+                  <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap' }}>
+                    <button 
+                      onClick={() => {
+                        setEditProblemId(activeProblem.id);
+                        setActiveView('create_problem');
+                      }} 
+                      className="btn"
+                      style={{ 
+                        fontSize: '0.78rem', 
+                        padding: '0.35rem 0.75rem', 
+                        backgroundColor: '#ffffff', 
+                        color: 'var(--text-primary)', 
+                        border: 'none', 
+                        borderRadius: '8px',
+                        fontWeight: 600,
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
+                      }}
+                    >
+                      문제 수정
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setEditProblemId(null);
+                        setActiveView('create_problem');
+                      }} 
+                      className="btn btn-point"
+                      style={{ 
+                        fontSize: '0.78rem', 
+                        padding: '0.35rem 0.75rem',
+                        fontWeight: 600
+                      }}
+                    >
+                      + 새 문제 추가
+                    </button>
+                  </div>
                 ) : (
                   <button 
                     onClick={() => {
-                      setSelectedProblemId(null);
+                      setEditProblemId(null);
                       setActiveView('create_problem');
                     }} 
                     className="btn btn-point"
@@ -863,23 +883,37 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                     const totalQuestions = activeProblem?.questions.length || 0;
 
                     let statusBadge = <span className="badge badge-gray">미시작</span>;
-                    let cardShadow = '0 4px 12px rgba(15, 23, 42, 0.06)';
+                    let cardShadow = '0 1px 4px rgba(15, 23, 42, 0.03)';
                     let cardBg = '#ffffff';
+                    let cardOpacity = 1;
 
                     if (isStudentAbsent) {
-                      statusBadge = <span className="badge" style={{ backgroundColor: '#fef3c7', color: '#d97706' }}>{absentLabel}</span>;
-                      cardBg = '#fffbeb';
-                      cardShadow = '0 2px 8px rgba(217, 119, 6, 0.06)';
+                      statusBadge = (
+                        <span 
+                          className="badge" 
+                          style={{ 
+                            backgroundColor: '#f1f5f9', 
+                            color: '#94a3b8', 
+                            border: '1px solid #e2e8f0',
+                            fontWeight: 500
+                          }}
+                        >
+                          {absentLabel}
+                        </span>
+                      );
+                      cardBg = '#f8fafc';
+                      cardShadow = 'none';
+                      cardOpacity = 0.55;
                     } else if (totalQuestions > 0) {
                       if (completedCount >= totalQuestions) {
                         statusBadge = <span className="badge badge-green">완료</span>;
                         cardBg = 'rgba(5, 150, 105, 0.08)';
-                        cardShadow = '0 4px 12px rgba(5, 150, 105, 0.12)';
+                        cardShadow = '0 1px 4px rgba(5, 150, 105, 0.08)';
                       } else if (mySubs.length > 0 || hasStartMarker) {
-                        // 답안 제출이 있거나, 아직 제출은 없으나 풀이창을 연 경우 진행중으로 표시
-                        statusBadge = <span className="badge badge-indigo">진행중 ({completedCount}/{totalQuestions})</span>;
-                        cardBg = 'rgba(6, 78, 59, 0.06)';
-                        cardShadow = '0 4px 12px rgba(6, 78, 59, 0.12)';
+                        // 답안 제출이 있거나, 아직 제출은 없으나 풀이창을 연 경우: 일반적인 상태로 표시
+                        statusBadge = <span className="badge badge-gray">진행중 ({completedCount}/{totalQuestions})</span>;
+                        cardBg = '#ffffff';
+                        cardShadow = '0 1px 4px rgba(15, 23, 42, 0.03)';
                       }
                     }
 
@@ -894,11 +928,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                           padding: '0.75rem 1rem',
                           cursor: isStudentAbsent ? 'not-allowed' : 'pointer',
                           boxShadow: cardShadow,
+                          opacity: cardOpacity,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
                           gap: '0.5rem',
-                          transition: 'background-color 0.15s ease'
+                          transition: 'all 0.15s ease'
                         }}
                       >
                         {/* 왼쪽: 인디케이터 - 번호 - 이름 */}
@@ -1230,7 +1265,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             <h3 style={{ margin: 0 }}>배포된 아침활동 목록</h3>
             <button 
               onClick={() => {
-                setSelectedProblemId(null);
+                setEditProblemId(null);
                 setActiveView('create_problem');
               }} 
               className="btn btn-primary btn-point"
@@ -1269,7 +1304,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                         <button
                           onClick={() => {
                             setSelectedDate(prob.date);
-                            setSelectedProblemId(prob.id);
+                            setEditProblemId(prob.id);
                             setActiveView('create_problem');
                           }}
                           className="btn btn-secondary"

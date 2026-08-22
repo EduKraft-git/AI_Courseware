@@ -1,12 +1,43 @@
 import React, { useState, useEffect } from 'react';
 import { saveProblem, getProblem, getDailyProblems, getAllClasses } from '../db';
 import { Problem, Question, SchoolClass } from '../types';
+import { CHAPTER_STANDARDS_MAP } from '../constants/mathStandards';
 
 interface AdminCreateProblemProps {
   onBack: () => void;
   initialDate?: string;
   initialProblemId?: string | null; // 수정 모드 진입 시 특정 문제 꾸러미 고유 ID 전달용
 }
+
+// ℹ️ 타이틀 옆 미니 인포메이션 툴팁 팝오버 컴포넌트
+const InfoTooltip: React.FC<{ text: React.ReactNode }> = ({ text }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <span 
+      className="info-tooltip-wrapper"
+      onMouseEnter={() => setIsOpen(true)}
+      onMouseLeave={() => setIsOpen(false)}
+    >
+      <button
+        type="button"
+        className="info-tooltip-btn"
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsOpen(!isOpen);
+        }}
+        aria-label="도움말 보기"
+      >
+        ⓘ
+      </button>
+      {isOpen && (
+        <div className="info-tooltip-popover">
+          {text}
+        </div>
+      )}
+    </span>
+  );
+};
 
 export const AdminCreateProblem: React.FC<AdminCreateProblemProps> = ({ onBack, initialDate, initialProblemId }) => {
   const [selectedDate, setSelectedDate] = useState('');
@@ -58,12 +89,64 @@ export const AdminCreateProblem: React.FC<AdminCreateProblemProps> = ({ onBack, 
     fetchClasses();
   }, []);
 
-  // 학년별 기본 단원 목록 매핑
+  // 📚 아이스크림 초등 수학 교과서 기준 학년별 단원 목록 매핑 (1학기 & 2학기 전 단원)
   const chapterOptions: { [key: string]: string[] } = {
-    '3학년': ['세 자리 수의 덧셈과 뺄셈', '나눗셈', '곱셈', '분수와 소수', '길이와 시간'],
-    '4학년': ['큰 수', '각도', '곱셈과 나눗셈', '평면도형의 이동', '막대그래프', '규칙 찾기'],
-    '5학년': ['자연수의 혼합 계산', '약수와 배수', '약분과 통분', '분수의 덧셈과 뺄셈', '다각형의 둘레와 넓이', '분수의 곱셈', '소수의 곱셈'],
-    '6학년': ['분수의 나눗셈', '각기둥과 각뿔', '소수의 나눗셈', '비와 비율', '여러 가지 그래프', '직육면체의 부피와 겉넓이', '비례식과 비례배분', '원개의 넓이']
+    '3학년': [
+      '[1학기] 1. 덧셈과 뺄셈',
+      '[1학기] 2. 평면도형',
+      '[1학기] 3. 나눗셈',
+      '[1학기] 4. 곱셈',
+      '[1학기] 5. 길이와 시간',
+      '[1학기] 6. 분수와 소수',
+      '[2학기] 1. 곱셈',
+      '[2학기] 2. 나눗셈',
+      '[2학기] 3. 원',
+      '[2학기] 4. 분수',
+      '[2학기] 5. 들이와 무게',
+      '[2학기] 6. 자료의 정리'
+    ],
+    '4학년': [
+      '[1학기] 1. 큰 수',
+      '[1학기] 2. 각도',
+      '[1학기] 3. 곱셈과 나눗셈',
+      '[1학기] 4. 평면도형의 이동',
+      '[1학기] 5. 막대그래프',
+      '[1학기] 6. 규칙 찾기',
+      '[2학기] 1. 분수의 덧셈과 뺄셈',
+      '[2학기] 2. 삼각형',
+      '[2학기] 3. 소수의 덧셈과 뺄셈',
+      '[2학기] 4. 사각형',
+      '[2학기] 5. 꺾은선그래프',
+      '[2학기] 6. 다각형'
+    ],
+    '5학년': [
+      '[1학기] 1. 자연수의 혼합 계산',
+      '[1학기] 2. 약수와 배수',
+      '[1학기] 3. 규칙과 대응',
+      '[1학기] 4. 약분과 통분',
+      '[1학기] 5. 분수의 덧셈과 뺄셈',
+      '[1학기] 6. 다각형의 둘레와 넓이',
+      '[2학기] 1. 수의 범위와 어림하기',
+      '[2학기] 2. 분수의 곱셈',
+      '[2학기] 3. 합동과 대칭',
+      '[2학기] 4. 소수의 곱셈',
+      '[2학기] 5. 직육면체',
+      '[2학기] 6. 평균과 가능성'
+    ],
+    '6학년': [
+      '[1학기] 1. 분수의 나눗셈',
+      '[1학기] 2. 각기둥과 각뿔',
+      '[1학기] 3. 소수의 나눗셈',
+      '[1학기] 4. 비와 비율',
+      '[1학기] 5. 여러 가지 그래프',
+      '[1학기] 6. 직육면체의 부피와 겉넓이',
+      '[2학기] 1. 분수의 나눗셈 (심화)',
+      '[2학기] 2. 소수의 나눗셈 (심화)',
+      '[2학기] 3. 공간과 입체',
+      '[2학기] 4. 비례식과 비례배분',
+      '[2학기] 5. 원의 넓이',
+      '[2학기] 6. 원기둥, 원뿔, 구'
+    ]
   };
 
   // 학년 변경 시 단원 자동 동기화
@@ -76,17 +159,23 @@ export const AdminCreateProblem: React.FC<AdminCreateProblemProps> = ({ onBack, 
     }
   }, [grade]);
 
-  // 선택된 날짜에 이미 배포된 문제가 있다면 자동으로 불러오기
+  // 🌟 명시적 수정 모드(initialProblemId 존재)일 때만 기존 문제 데이터 로딩
   useEffect(() => {
-    if (!selectedDate) return;
+    if (!initialProblemId) {
+      // 신규 출제 모드일 때는 문제 ID를 비워두어 항상 새로운 고유 문제로 배포되도록 보장!
+      setProblemId(null);
+      setPreviewQuestions([]);
+      setIsGenerated(false);
+      return;
+    }
 
     const fetchExistingProblem = async () => {
       try {
         setIsLoading(true);
-        const targetId = problemId || selectedDate;
-        const existing = await getProblem(targetId);
+        const existing = await getProblem(initialProblemId);
         if (existing) {
           setProblemId(existing.id);
+          setSelectedDate(existing.date);
           setGrade(existing.grade);
           setChapter(existing.chapter);
           setProblemType(existing.type);
@@ -96,9 +185,6 @@ export const AdminCreateProblem: React.FC<AdminCreateProblemProps> = ({ onBack, 
             setTargetClasses(existing.targetClasses);
           }
           setIsGenerated(true);
-        } else {
-          setPreviewQuestions([]);
-          setIsGenerated(false);
         }
       } catch (err) {
         console.error('문제 로드 에러:', err);
@@ -108,7 +194,7 @@ export const AdminCreateProblem: React.FC<AdminCreateProblemProps> = ({ onBack, 
     };
 
     fetchExistingProblem();
-  }, [selectedDate, problemId]);
+  }, [initialProblemId]);
 
   // Gemini API를 직접 호출하여 수학 문제 생성
   const handleGenerateProblems = async () => {
@@ -129,14 +215,55 @@ export const AdminCreateProblem: React.FC<AdminCreateProblemProps> = ({ onBack, 
 
     setIsLoading(true);
 
-    const prompt = `
-당신은 대한민국 초등학교 수학 교육과정 전문가입니다.
-초등학교 ${grade} 수학 단원 [${chapter}]에 대한 [${problemType}] 아침활동 10분 수학 문제 ${questionsCount}문항을 생성해 주세요.
+    // 🎯 선택된 단원의 정밀 성취기준 및 출제 가이드라인 조회
+    const standardInfo = CHAPTER_STANDARDS_MAP[grade]?.[chapter];
+    const standardPromptBlock = standardInfo ? `
+[📌 해당 단원 아이스크림 교과서 및 2022 개정 교육과정 성취기준 가이드]
+- 핵심 학습 개념: ${standardInfo.coreConcepts}
+- 출제 범위 및 수준 제한: ${standardInfo.scopeGuide}
+` : '';
 
-[요구사항]
-1. 초등학교 ${grade} 학생의 인지 발달 수준과 2022 개정 수학과 교육과정 성취기준에 알맞은 난이도로 출제하세요.
-2. 학생들이 키보드로 손쉽게 입력할 수 있는 답안 형식을 고려하세요. (분수는 '3/2' 또는 '1 1/2' 형태 허용, 소수는 소수점 표기)
-3. ⚠️ [중요: 입력 형식 안내(answerGuide)] 
+    // 🧮 문제 유형별 외형 포맷 제약 블록 생성 (단순계산문제 시 스토리텔링 완전 배제)
+    let typeFormatGuide = '';
+    if (problemType === '단순계산문제') {
+      typeFormatGuide = `
+[🚨 문제 유형: '단순계산문제 (연산 중심)' 엄격한 출제 규칙 - 100% 필수 준수!]
+- 1번 문항부터 마지막 ${questionsCount}번 문항까지 **예외 없이 100% 순수 수식 연산 문제**로만 출제하세요.
+- ❌ 절대 금지: 사람 이름(영희, 철수 등), 실생활 사물/상황(식혜, 사탕, 끈, 리본, 사과, 달리기, 빵 등), 문장형 스토리텔링은 단 한 단어도 포함하지 마세요!
+- ✅ 필수 발문 포맷 예시:
+  * "다음 계산을 하세요: 4/5 ÷ 3"
+  * "5/6 ÷ 2/3의 몫을 기약분수로 구하세요."
+  * "12.8 ÷ 4의 값을 소수로 구하세요."
+  * "24와 36의 최대공약수를 구하세요."
+- 마지막 문항이라고 해서 문장제나 실생활 문제로 변형하는 것을 엄격히 금지합니다.`;
+    } else if (problemType === '문장제 서술형 문제') {
+      typeFormatGuide = `
+[🚨 문제 유형: '문장제 서술형 문제 (이해 중심)' 엄격한 출제 규칙 - 100% 필수 준수!]
+- 1번 문항부터 마지막 ${questionsCount}번 문항까지 **수학적 개념과 관계식을 세워 해결하는 문장형 문제**로 출제하세요.
+- ✅ 필수 발문 포맷 예시:
+  * "어떤 수 □에 3을 곱해야 할 것을 잘못하여 더했더니 15가 되었습니다. 바르게 계산한 값을 구하세요."
+  * "가로가 8cm, 세로가 5cm인 직사각형의 둘레는 몇 cm인지 구하세요."
+  * "밑변이 12cm이고 높이가 7cm인 삼각형의 넓이를 구하세요."`;
+    } else if (problemType === '실생활 응용 문제') {
+      typeFormatGuide = `
+[🚨 문제 유형: '실생활 응용 문제 (활용 중심)' 엄격한 출제 규칙 - 100% 필수 준수!]
+- 1번 문항부터 마지막 ${questionsCount}번 문항까지 **실생활의 구체적인 상황(음식, 물건, 가격, 거리, 시간, 나누어 갖기 등)을 배경으로 한 응용 문제**로 출제하세요.
+- ✅ 필수 발문 포맷 예시:
+  * "식혜 4/5 L를 3명이 똑같이 나누어 마시려고 합니다. 한 사람이 마실 수 있는 식혜는 몇 L인지 기약분수로 구하세요."
+  * "사탕 24개와 초콜릿 36개를 가능한 많은 학생에게 남김없이 똑같이 나누어 주려고 합니다. 몇 명에게 나누어 줄 수 있습니까?"`;
+    }
+
+    const prompt = `
+당신은 대한민국 초등학교 수학 교육과정 및 아이스크림 교과서 집필 전문가입니다.
+초등학교 ${grade} 수학 단원 [${chapter}]에 대한 [${problemType}] 아침활동 10분 수학 문제 ${questionsCount}문항을 생성해 주세요.
+${typeFormatGuide}
+${standardPromptBlock}
+[필수 출제 원칙]
+1. 위 [🚨 문제 유형 출제 규칙]을 1번부터 마지막 ${questionsCount}번 문제까지 **100% 동일한 형식으로 엄격히 일관되게 유지**하세요. (마지막 문항 변형 절대 금지!)
+2. 단원 성취기준과 출제 범위 제한 지침을 준수하여, 아직 배우지 않은 상위 학년 개념이 절대 포함되지 않도록 하세요.
+3. 초등학교 ${grade} 학생의 인지 발달 수준과 단원 특성에 꼭 맞는 난이도로 명확하게 출제하세요.
+4. 학생들이 키보드로 손쉽게 입력할 수 있는 답안 형식을 고려하세요. (분수는 '3/2' 또는 '1 1/2' 형태 허용, 소수는 소수점 표기)
+5. ⚠️ [중요: 입력 형식 안내(answerGuide)] 
    - answerGuide에는 **절대로 해당 문제의 실제 정답이나 정답 숫자를 예시로 넣지 마세요!**
    - 학생에게 정답이 노출되지 않도록, 오직 일반적인 입력 형태와 형식만 안내해야 합니다.
    - 예시 지침:
@@ -144,9 +271,9 @@ export const AdminCreateProblem: React.FC<AdminCreateProblemProps> = ({ onBack, 
      * 분수: "기약분수로 입력하세요 (예: 1/2 형태)" 또는 "가분수 또는 대분수로 입력하세요 (예: 3/2 또는 1 1/2 형태)"
      * 소수: "소수로 입력하세요 (예: 0.5 형태)"
      * 단위: "단위를 제외하고 숫자만 입력하세요."
-4. hint(힌트)에는 절대로 정답이나 직접적인 수식을 노출하지 말고, 학생이 스스로 생각할 수 있는 핵심 개념이나 풀이 방향에 대한 힌트만 적어주세요.
-5. explanation(문제 풀이)에는 문제를 틀린 학생이 복습할 수 있도록 단계별 상세한 풀이 과정과 최종 정답 도출 식을 친절하게 기술해 주세요.
-6. 반드시 아래 JSON 형식으로만 응답하고, 마크다운 코드블록(\`\`\`json)은 포함해도 되지만 추가적인 텍스트 설명은 붙이지 마세요.
+6. hint(힌트)에는 절대로 정답이나 직접적인 수식을 노출하지 말고, 학생이 스스로 생각할 수 있는 핵심 개념이나 풀이 방향에 대한 힌트만 적어주세요.
+7. explanation(문제 풀이)에는 문제를 틀린 학생이 복습할 수 있도록 단계별 상세한 풀이 과정과 최종 정답 도출 식을 친절하게 기술해 주세요.
+8. 반드시 아래 JSON 형식으로만 응답하고, 마크다운 코드블록(\`\`\`json)은 포함해도 되지만 추가적인 텍스트 설명은 붙이지 마세요.
 
 JSON 응답 스키마:
 [
@@ -379,8 +506,12 @@ JSON 응답 스키마:
       {/* 헤더 네비게이션 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.5rem' }}>
         <div>
-          <h2>AI 아침활동 수학 문제 출제 및 검수</h2>
-          <p style={{ marginTop: '0.25rem' }}>Gemini AI를 활용하여 학년과 단원에 꼭 맞는 10분 아침활동 문제를 자동 생성합니다.</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+            <h2 style={{ margin: 0 }}>AI 아침활동 수학 문제 출제 및 검수</h2>
+            <span className="badge badge-gray" style={{ padding: '0.25rem 0.65rem', fontSize: '0.78rem', fontWeight: 600 }}>
+              {initialProblemId ? '배포 문제 수정 모드' : '신규 문제 추가 모드'}
+            </span>
+          </div>
         </div>
         <button onClick={onBack} className="btn btn-secondary" style={{ flexShrink: 0 }}>
           ← 대시보드로 돌아가기
@@ -388,114 +519,125 @@ JSON 응답 스키마:
       </div>
 
       <div className="grid grid-cols-2" style={{ gap: '2rem', alignItems: 'start' }}>
-        {/* 왼쪽: 출제 조건 설정 */}
+        {/* 왼쪽: 출제 조건 설정 (2열 컴팩트 슬림 카드) */}
         <div className="card" style={{ padding: '1.5rem' }}>
-          <h3 style={{ marginBottom: '1.5rem' }}>출제 조건 설정</h3>
+          <h3 style={{ marginBottom: '1.25rem' }}>출제 조건 설정</h3>
 
-          <div className="form-group">
-            <label className="form-label">배포 날짜</label>
-            <input 
-              type="date" 
-              className="input-control" 
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-            />
-          </div>
+          {/* Row 1: [배포 날짜 (35%)] + [배포 대상 학급(반) (65%)] */}
+          <div className="form-row-2col">
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">배포 날짜</label>
+              <input 
+                type="date" 
+                className="input-control" 
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+              />
+            </div>
 
-          <div className="form-group" style={{ marginBottom: '1.25rem' }}>
-            <label className="form-label">배포 대상 학급(반)</label>
-            <div style={{ 
-              display: 'flex', 
-              flexWrap: 'wrap', 
-              gap: '1rem', 
-              padding: '0.65rem 0.85rem', 
-              border: '1px solid var(--border-color)', 
-              borderRadius: '10px', 
-              backgroundColor: '#fafafa' 
-            }}>
-              {classList.map((c) => {
-                const clsName = c.name;
-                const isChecked = targetClasses.includes(clsName);
-                return (
-                  <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500 }}>
-                    <input
-                      type="checkbox"
-                      value={clsName}
-                      checked={isChecked}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setTargetClasses(prev => [...prev, clsName]);
-                        } else {
-                          setTargetClasses(prev => prev.filter(item => item !== clsName));
-                        }
-                      }}
-                      style={{ cursor: 'pointer', width: '15px', height: '15px' }}
-                    />
-                    {clsName}
-                  </label>
-                );
-              })}
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">배포 대상 학급(반)</label>
+              <div style={{ 
+                display: 'flex', 
+                flexWrap: 'wrap', 
+                gap: '0.6rem', 
+                padding: '0.6rem 0.75rem', 
+                border: '1px solid var(--border-color)', 
+                borderRadius: '10px', 
+                backgroundColor: '#fafafa',
+                minHeight: '44px',
+                alignItems: 'center'
+              }}>
+                {classList.map((c) => {
+                  const clsName = c.name;
+                  const isChecked = targetClasses.includes(clsName);
+                  return (
+                    <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500 }}>
+                      <input
+                        type="checkbox"
+                        value={clsName}
+                        checked={isChecked}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setTargetClasses(prev => [...prev, clsName]);
+                          } else {
+                            setTargetClasses(prev => prev.filter(item => item !== clsName));
+                          }
+                        }}
+                        style={{ cursor: 'pointer', width: '15px', height: '15px' }}
+                      />
+                      {clsName}
+                    </label>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
-          <div className="form-group">
-            <label className="form-label">대상 학년</label>
-            <select 
-              className="input-control" 
-              value={grade}
-              onChange={(e) => setGrade(e.target.value)}
-            >
-              <option value="3학년">3학년</option>
-              <option value="4학년">4학년</option>
-              <option value="5학년">5학년</option>
-              <option value="6학년">6학년</option>
-            </select>
+          {/* Row 2: [대상 학년] + [수학 단원] */}
+          <div className="form-row-2col">
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">대상 학년</label>
+              <select 
+                className="input-control" 
+                value={grade}
+                onChange={(e) => setGrade(e.target.value)}
+              >
+                <option value="3학년">3학년</option>
+                <option value="4학년">4학년</option>
+                <option value="5학년">5학년</option>
+                <option value="6학년">6학년</option>
+              </select>
+            </div>
+
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">수학 단원</label>
+              <select 
+                className="input-control" 
+                value={chapter}
+                onChange={(e) => setChapter(e.target.value)}
+              >
+                {chapterOptions[grade]?.map((ch) => (
+                  <option key={ch} value={ch}>{ch}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          <div className="form-group">
-            <label className="form-label">수학 단원</label>
-            <select 
-              className="input-control" 
-              value={chapter}
-              onChange={(e) => setChapter(e.target.value)}
-            >
-              {chapterOptions[grade]?.map((ch) => (
-                <option key={ch} value={ch}>{ch}</option>
-              ))}
-            </select>
-          </div>
+          {/* Row 3: [문제 개수] + [문제 유형] */}
+          <div className="form-row-2col" style={{ marginBottom: '1.75rem' }}>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">문제 개수</label>
+              <select 
+                className="input-control" 
+                value={questionsCount}
+                onChange={(e) => setQuestionsCount(Number(e.target.value))}
+              >
+                <option value={5}>5문제</option>
+                <option value={10}>10문제</option>
+                <option value={15}>15문제</option>
+                <option value={20}>20문제</option>
+              </select>
+            </div>
 
-          <div className="form-group">
-            <label className="form-label">문제 개수</label>
-            <select 
-              className="input-control" 
-              value={questionsCount}
-              onChange={(e) => setQuestionsCount(Number(e.target.value))}
-            >
-              <option value={5}>5문제</option>
-              <option value={10}>10문제</option>
-              <option value={15}>15문제</option>
-              <option value={20}>20문제</option>
-            </select>
-          </div>
-
-          <div className="form-group" style={{ marginBottom: '2rem' }}>
-            <label className="form-label">문제 유형</label>
-            <select 
-              className="input-control" 
-              value={problemType}
-              onChange={(e) => setProblemType(e.target.value)}
-            >
-              <option value="단순계산문제">단순계산문제 (연산 중심)</option>
-              <option value="문장제 서술형 문제">문장제 서술형 문제 (이해 중심)</option>
-              <option value="실생활 응용 문제">실생활 응용 문제 (활용 중심)</option>
-            </select>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">문제 유형</label>
+              <select 
+                className="input-control" 
+                value={problemType}
+                onChange={(e) => setProblemType(e.target.value)}
+              >
+                <option value="단순계산문제">단순계산문제 (연산 중심)</option>
+                <option value="문장제 서술형 문제">문장제 서술형 문제 (이해 중심)</option>
+                <option value="실생활 응용 문제">실생활 응용 문제 (활용 중심)</option>
+              </select>
+            </div>
           </div>
 
           <button 
             onClick={handleGenerateProblems} 
             className="btn btn-primary btn-point"
-            style={{ width: '100%', padding: '0.8rem' }}
+            style={{ width: '100%', padding: '0.85rem' }}
             disabled={isLoading || !selectedDate}
           >
             {isLoading ? 'Gemini AI 문제 생성 중...' : 'AI 문제 생성하기'}
@@ -504,10 +646,10 @@ JSON 응답 스키마:
 
         {/* 오른쪽: 생성된 문제 목록 프리뷰 및 최종 검수 */}
         <div className="card" style={{ padding: '1.5rem', minHeight: '400px' }}>
-          <h3 style={{ marginBottom: '0.5rem' }}>생성 문제 검수 및 배포</h3>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
-            AI가 생성한 문제를 검토하고 내용을 필요에 맞게 즉시 수정할 수 있습니다.
-          </p>
+          <h3 style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            생성 문제 검수 및 배포
+            <InfoTooltip text="AI가 생성한 문제를 검토하고 내용을 필요에 맞게 즉시 수정할 수 있습니다." />
+          </h3>
 
           {isLoading ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '300px' }}>

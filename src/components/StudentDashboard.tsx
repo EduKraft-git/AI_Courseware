@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   getDailyProblems, 
+  subscribeDailyProblems,
   getDailyAttendance, 
   getStudentSubmissions, 
   getUnfinishedProblems, 
@@ -89,11 +90,13 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
 
   const todayStr = getTodayString();
 
+  // 🌟 오늘의 배포 문제 및 출결 실시간 감지 (새 문제 배포 시 0.1초 즉시 화면 반영)
   useEffect(() => {
-    const loadDashboardData = async () => {
-      setIsLoading(true);
+    setIsLoading(true);
+
+    // 1. 출결(결석) 현황 검사
+    const checkAttendance = async () => {
       try {
-        // 1. 출결(결석) 현황 검사
         const dailyAttendance = await getDailyAttendance(todayStr, student.classId);
         const myAttendance = dailyAttendance.find(a => a.studentId === student.id);
         if (myAttendance && myAttendance.status !== 'present') {
@@ -101,12 +104,19 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
           setAbsentReason(
             myAttendance.status === 'absent_ill' ? '질병 결석' : '출석 인정 결석'
           );
+        } else {
+          setIsAbsent(false);
+          setAbsentReason('');
         }
+      } catch (e) {
+        console.error('출결 로드 에러:', e);
+      }
+    };
+    checkAttendance();
 
-        // 2. 오늘의 문제 세트들 로드 (다중 유형 배포 지원, 학생 반 필터 적용)
-        const problems = await getDailyProblems(todayStr, student.classId);
-
-        // 3. 각 문제 세트 완료 여부 검사
+    // 2. 오늘의 문제 세트 실시간 구독 리스너 가동 (선생님이 배포하는 즉시 0.1초 자동 갱신!)
+    const unsubscribeProblems = subscribeDailyProblems(todayStr, student.classId, async (problems) => {
+      try {
         const listWithStatus = await Promise.all(problems.map(async (p) => {
           const submissions = await getStudentSubmissions(p.id, student.classId, student.id);
           const totalQuestions = p.questions.length;
@@ -121,18 +131,20 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
         }));
         setTodayProblems(listWithStatus);
 
-        // 4. 밀린 학습(미완료 학습) 문제 세트 목록 로드 (날짜 대신 문제 단위 리스트)
+        // 밀린 학습(미완료 학습) 문제 세트 목록도 함께 실시간 갱신
         const unfinished = await getUnfinishedProblems(student.classId, student.id, todayStr);
         setPendingProblems(unfinished);
       } catch (e) {
-        console.error(e);
+        console.error('실시간 문제 처리 에러:', e);
       } finally {
         setIsLoading(false);
       }
-    };
+    });
 
-    loadDashboardData();
-  }, [student.id, todayStr]);
+    return () => {
+      unsubscribeProblems();
+    };
+  }, [student.id, student.classId, todayStr]);
 
   // 실시간 온라인 하트비트 작동 (30초 주기) 및 이탈/종료 시 즉시 오프라인 전환
   useEffect(() => {
