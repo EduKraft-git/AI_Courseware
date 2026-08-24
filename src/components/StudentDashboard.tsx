@@ -69,6 +69,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   const [activeTab, setActiveTab] = useState<'today' | 'pending' | 'calendar'>('today');
   const [todayProblems, setTodayProblems] = useState<ProblemWithStatus[]>([]);
   const [isAbsent, setIsAbsent] = useState(false);
+  const [isExempt, setIsExempt] = useState(false);
   const [absentReason, setAbsentReason] = useState('');
   const [pendingProblems, setPendingProblems] = useState<Problem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -94,18 +95,26 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   useEffect(() => {
     setIsLoading(true);
 
-    // 1. 출결(결석) 현황 검사
+    // 1. 출결(결석/면제) 현황 검사
     const checkAttendance = async () => {
       try {
         const dailyAttendance = await getDailyAttendance(todayStr, student.classId);
         const myAttendance = dailyAttendance.find(a => a.studentId === student.id);
         if (myAttendance && myAttendance.status !== 'present') {
-          setIsAbsent(true);
-          setAbsentReason(
-            myAttendance.status === 'absent_ill' ? '질병 결석' : '출석 인정 결석'
-          );
+          if (myAttendance.status === 'exempt') {
+            setIsAbsent(false);
+            setIsExempt(true);
+            setAbsentReason('선생님 면제권 적용');
+          } else {
+            setIsAbsent(true);
+            setIsExempt(false);
+            setAbsentReason(
+              myAttendance.status === 'absent_ill' ? '질병 결석' : '출석 인정 결석'
+            );
+          }
         } else {
           setIsAbsent(false);
+          setIsExempt(false);
           setAbsentReason('');
         }
       } catch (e) {
@@ -302,7 +311,22 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
           {/* 오늘의 아침활동 탭 */}
           {activeTab === 'today' && (
             <div className="card" style={{ padding: '2rem' }}>
-              {isAbsent ? (
+              {isExempt ? (
+                // 면제권 안내 화면
+                <div style={{
+                  backgroundColor: '#fef3c7',
+                  borderRadius: '12px',
+                  padding: '2.5rem 1.5rem',
+                  textAlign: 'center',
+                  border: '1px solid #fde68a'
+                }}>
+                  <h3 style={{ color: '#92400e', marginBottom: '0.5rem' }}>선생님 면제권이 사용되었습니다!</h3>
+                  <p style={{ color: '#b45309', margin: 0, lineHeight: 1.6 }}>
+                    선생님께서 오늘 아침활동을 <strong>면제</strong>해 주셨습니다. <br />
+                    오늘은 문제를 풀지 않고 자유롭게 다른 독서나 아침 활동을 진행해도 좋습니다!
+                  </p>
+                </div>
+              ) : isAbsent ? (
                 // 결석 안내 화면
                 <div style={{
                   backgroundColor: '#fffbeb',

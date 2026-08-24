@@ -48,13 +48,13 @@ export interface Submission {
   isCompleted: boolean; // 최종 해결 완료 여부
 }
 
-// 학생 출결(결석) 기록 타입 정의
+// 학생 출결(결석/면제) 기록 타입 정의
 export interface Attendance {
   id: string; // Firestore 문서 ID ({date}_{studentId})
   date: string; // 날짜 (YYYY-MM-DD)
   classId: string; // 학급 반 정보
   studentId: string; // 학생 번호
-  status: 'present' | 'absent_ill' | 'absent_approved'; // present: 출석, absent_ill: 질병결석, absent_approved: 출석인정결석
+  status: 'present' | 'absent_ill' | 'absent_approved' | 'exempt'; // present: 출석, absent_ill: 질병결석, absent_approved: 출석인정결석, exempt: 면제권
 }
 
 // 학급 반 메타데이터 타입 정의 (신설)

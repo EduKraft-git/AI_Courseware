@@ -329,7 +329,7 @@ export const setStudentAttendance = async (
   date: string, 
   classId: string,
   studentId: string, 
-  status: 'present' | 'absent_ill' | 'absent_approved'
+  status: 'present' | 'absent_ill' | 'absent_approved' | 'exempt'
 ): Promise<void> => {
   const docId = `${date}_${classId}_${studentId}`;
   if (isFirebaseActive()) {

@@ -753,3 +753,61 @@ p {
     letter-spacing: -0.03em;
   }
 }
+
+/* ========================================== */
+/* 출결 및 면제권 4단 세그먼트 토글 버튼 그룹 (글자 겹침 방지 & 균등 분할) */
+/* ========================================== */
+.attendance-toggle-group {
+  display: inline-flex;
+  align-items: center;
+  width: 265px;
+  min-width: 265px;
+  max-width: 265px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  overflow: hidden;
+  background-color: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  user-select: none;
+  box-sizing: border-box;
+}
+
+.attendance-toggle-btn {
+  flex: 1 1 25%;
+  width: 25%;
+  min-width: 0;
+  padding: 0.35rem 0.1rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+  border: none;
+  border-right: 1px solid #cbd5e1;
+  background-color: transparent;
+  color: #334155;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  white-space: nowrap;
+  text-align: center;
+  line-height: 1.2;
+  letter-spacing: -0.04em;
+  box-sizing: border-box;
+}
+
+.attendance-toggle-btn:last-child {
+  border-right: none;
+}
+
+.attendance-toggle-btn:hover:not(.active) {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+.attendance-toggle-btn.active {
+  background-color: #0f172a;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+
+
+

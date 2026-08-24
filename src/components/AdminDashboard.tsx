@@ -345,8 +345,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     }
   };
 
-  // 결석 여부 토글 (개별 CRUD)
-  const handleAttendanceChange = async (studentId: string, status: 'present' | 'absent_ill' | 'absent_approved') => {
+  // 출결 및 면제권 상태 변경 (개별 CRUD)
+  const handleAttendanceChange = async (studentId: string, status: 'present' | 'absent_ill' | 'absent_approved' | 'exempt') => {
     try {
       await setStudentAttendance(selectedDate, classId, studentId, status);
       loadDailyStatus(); // 출결 다시 로드
@@ -641,11 +641,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       {/* ========================================== */}
       {activeTab === 'status' && (() => {
         const totalCount = students.length;
-        const absentCount = dailyAttendance.filter(a => a.status !== 'present').length;
+        const absentCount = dailyAttendance.filter(a => a.status === 'absent_ill' || a.status === 'absent_approved').length;
         const targetCount = totalCount - absentCount;
         const completedStudentsCount = students.filter(student => {
           const myAtt = dailyAttendance.find(a => a.studentId === student.id);
-          if (myAtt && myAtt.status !== 'present') return false;
+          if (myAtt?.status === 'exempt') return true;
+          if (myAtt && (myAtt.status === 'absent_ill' || myAtt.status === 'absent_approved')) return false;
           // 선택된 문제 세트에 맞는 제출 기록만 필터링
           const isLegacy = activeProblem?.id ? !activeProblem.id.includes('_') : true;
           const mySubs = dailySubmissions.filter(s => {
@@ -866,7 +867,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                       : false;
 
                     const myAtt = dailyAttendance.find(a => a.studentId === student.id);
-                    const isStudentAbsent = myAtt && myAtt.status !== 'present';
+                    const isStudentAbsent = myAtt && (myAtt.status === 'absent_ill' || myAtt.status === 'absent_approved');
+                    const isStudentExempt = myAtt?.status === 'exempt';
                     const absentLabel = myAtt?.status === 'absent_ill' ? '결석(질병)' : '결석(출석인정)';
 
                     // 선택된 문제 세트에 종속된 제출 결과만 필터링
@@ -887,7 +889,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                     let cardBg = '#ffffff';
                     let cardOpacity = 1;
 
-                    if (isStudentAbsent) {
+                    if (isStudentExempt) {
+                      statusBadge = <span className="badge badge-green">면제</span>;
+                      cardBg = 'rgba(5, 150, 105, 0.08)';
+                      cardShadow = '0 1px 4px rgba(5, 150, 105, 0.08)';
+                      cardOpacity = 1;
+                    } else if (isStudentAbsent) {
                       statusBadge = (
                         <span 
                           className="badge" 
@@ -1032,7 +1039,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left', backgroundColor: '#fcfaf6' }}>
                     <th style={{ padding: '0.6rem 0.4rem', width: '55px', whiteSpace: 'nowrap' }}>번호</th>
                     <th style={{ padding: '0.6rem 0.4rem', width: '80px', whiteSpace: 'nowrap' }}>이름</th>
-                    <th style={{ padding: '0.6rem 0.4rem' }}>출결 설정 ({selectedDate})</th>
+                    <th style={{ padding: '0.6rem 0.4rem', minWidth: '275px' }}>
+                      <span style={{ whiteSpace: 'nowrap', display: 'inline-block' }}>출결 설정 및 면제</span>{' '}
+                      <span style={{ whiteSpace: 'nowrap', display: 'inline-block' }}>({selectedDate})</span>
+                    </th>
                     <th style={{ padding: '0.6rem 0.4rem', textAlign: 'center', width: '50px', whiteSpace: 'nowrap' }}>관리</th>
                   </tr>
                 </thead>
@@ -1081,28 +1091,37 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                             </span>
                           )}
                         </td>
-                        <td style={{ padding: '0.6rem 0.4rem' }}>
-                          <select
-                            className="input-control"
-                            style={{ 
-                              padding: '0.3rem 0.5rem', 
-                              fontSize: '0.82rem',
-                              width: '100%',
-                              boxSizing: 'border-box',
-                              borderColor: currentStatus !== 'present' ? '#d97706' : 'var(--border-color)',
-                              color: currentStatus !== 'present' ? '#d97706' : 'var(--text-primary)',
-                              fontWeight: currentStatus !== 'present' ? 600 : 400
-                            }}
-                            value={currentStatus}
-                            onChange={(e) => handleAttendanceChange(
-                              student.id, 
-                              e.target.value as 'present' | 'absent_ill' | 'absent_approved'
-                            )}
-                          >
-                            <option value="present">출석 (기본)</option>
-                            <option value="absent_ill">질병 결석</option>
-                            <option value="absent_approved">출석인정 결석</option>
-                          </select>
+                        <td style={{ padding: '0.6rem 0.4rem', minWidth: '275px', whiteSpace: 'nowrap' }}>
+                          <div className="attendance-toggle-group">
+                            <button
+                              type="button"
+                              className={`attendance-toggle-btn ${currentStatus === 'present' ? 'active' : ''}`}
+                              onClick={() => handleAttendanceChange(student.id, 'present')}
+                            >
+                              출석
+                            </button>
+                            <button
+                              type="button"
+                              className={`attendance-toggle-btn ${currentStatus === 'absent_ill' ? 'active' : ''}`}
+                              onClick={() => handleAttendanceChange(student.id, 'absent_ill')}
+                            >
+                              질병결석
+                            </button>
+                            <button
+                              type="button"
+                              className={`attendance-toggle-btn ${currentStatus === 'absent_approved' ? 'active' : ''}`}
+                              onClick={() => handleAttendanceChange(student.id, 'absent_approved')}
+                            >
+                              인정결석
+                            </button>
+                            <button
+                              type="button"
+                              className={`attendance-toggle-btn ${currentStatus === 'exempt' ? 'active' : ''}`}
+                              onClick={() => handleAttendanceChange(student.id, currentStatus === 'exempt' ? 'present' : 'exempt')}
+                            >
+                              면제
+                            </button>
+                          </div>
                         </td>
                         <td style={{ padding: '0.6rem 0.4rem', textAlign: 'center', width: '50px', whiteSpace: 'nowrap' }}>
                           <button
@@ -1202,7 +1221,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                           
                           let label = '미시작';
                           
-                          if (isAbsent) {
+                          if (att?.status === 'exempt') {
+                            label = '면제';
+                          } else if (isAbsent) {
                             label = att.status === 'absent_ill' ? '결석(질병)' : '결석(인정)';
                           } else if (completedCount >= totalQuestions && totalQuestions > 0) {
                             label = '완료';
@@ -1224,14 +1245,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                           let text = '#64748b';
                           let border = '1px solid #cbd5e1';
                           
-                          if (label.startsWith('결석')) {
-                            bg = '#fffbeb';
-                            text = '#d97706';
-                            border = '1px solid #fde68a';
-                          } else if (label === '완료') {
+                          if (label === '완료' || label === '면제') {
                             bg = 'rgba(16, 185, 129, 0.08)';
                             text = 'var(--color-success)';
                             border = '1px solid rgba(16, 185, 129, 0.2)';
+                          } else if (label.startsWith('결석')) {
+                            bg = '#f1f5f9';
+                            text = '#94a3b8';
+                            border = '1px solid #e2e8f0';
                           } else if (label === '진행중') {
                             bg = 'rgba(6, 78, 59, 0.08)';
                             text = 'var(--color-point)';
