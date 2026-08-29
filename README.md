@@ -3,6 +3,9 @@
 > **전국 초등 선생님들을 위한 100% 무료, 오픈소스 AI 맞춤형 수학 학습 플랫폼**  
 > 2022/2015 개정 교육과정 및 아이스크림 교과서 성취기준 완벽 연동 🎯
 
+![Version](https://img.shields.io/badge/release-v1.0.1-064e3b?style=flat-square)
+![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)
+
 <br />
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/EduKraft-git/AI_Courseware)
