@@ -9,6 +9,7 @@ import {
   getAllProblems
 } from '../db';
 import { Student, Problem, Submission } from '../types';
+import { getActiveGeminiApiKey } from '../config/appConfig';
 
 interface AdminAIReportProps {
   student: Student;
@@ -118,10 +119,10 @@ export const AdminAIReport: React.FC<AdminAIReportProps> = ({
 
   // Gemini API를 이용한 분석 리포트 생성
   const generateAIReport = async () => {
-    const activeApiKey = localStorage.getItem('temp_gemini_api_key') || import.meta.env.VITE_GEMINI_API_KEY;
+    const activeApiKey = getActiveGeminiApiKey();
     
     if (!activeApiKey || activeApiKey === 'YOUR_GEMINI_API_KEY_HERE') {
-      alert('Gemini API 키가 세팅되지 않았습니다. .env 환경 변수를 점검하시거나, 대시보드 하단의 수동 입력 폼을 활용해 주세요.');
+      alert('Gemini API 키가 세팅되지 않았습니다. 상단 환경설정(⚙️) 메뉴에서 Gemini API 키를 입력해 주세요.');
       return;
     }
 
@@ -180,7 +181,7 @@ ${JSON.stringify(dataSummary.submissions, null, 2)}
 
       let responseText = '';
       
-      // 1차 시도: v1beta 엔드포인트 호출
+      // 🚀 1순위: Gemini 3.5 Flash 호출
       let response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${activeApiKey}`,
         {
@@ -192,11 +193,10 @@ ${JSON.stringify(dataSummary.submissions, null, 2)}
         }
       );
 
-      // 만약 v1beta가 404 에러를 뱉으면 2차 시도로 v1 엔드포인트 시도
-      if (response.status === 404) {
-        console.warn('v1beta 호출 실패(404), v1 엔드포인트로 2차 시도합니다.');
+      // 2순위: Gemini 3.5 Pro 폴백
+      if (!response.ok) {
         response = await fetch(
-          `https://generativelanguage.googleapis.com/v1/models/gemini-3.5-flash:generateContent?key=${activeApiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-pro:generateContent?key=${activeApiKey}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -209,7 +209,7 @@ ${JSON.stringify(dataSummary.submissions, null, 2)}
 
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error?.message || `API 전송 에러! 상태코드: ${response.status}`);
+        throw new Error(errData?.error?.message || response.statusText || `API 전송 에러! 상태코드: ${response.status}`);
       }
 
       const resData = await response.json();
@@ -230,10 +230,10 @@ ${JSON.stringify(dataSummary.submissions, null, 2)}
 
   // 🌟 전체 누적 데이터를 기반으로 종합 AI 분석 리포트 생성
   const generateComprehensiveAIReport = async () => {
-    const activeApiKey = localStorage.getItem('temp_gemini_api_key') || import.meta.env.VITE_GEMINI_API_KEY;
+    const activeApiKey = getActiveGeminiApiKey();
     
     if (!activeApiKey || activeApiKey === 'YOUR_GEMINI_API_KEY_HERE') {
-      alert('Gemini API 키가 세팅되지 않았습니다. .env 환경 변수를 점검하시거나, 대시보드 하단의 수동 입력 폼을 활용해 주세요.');
+      alert('Gemini API 키가 세팅되지 않았습니다. 상단 환경설정(⚙️) 메뉴에서 Gemini API 키를 입력해 주세요.');
       return;
     }
 
@@ -283,6 +283,7 @@ ${JSON.stringify(historySummary, null, 2)}
 `;
 
       let responseText = '';
+      // 🚀 1순위: Gemini 3.5 Flash 호출
       let response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${activeApiKey}`,
         {
@@ -294,9 +295,10 @@ ${JSON.stringify(historySummary, null, 2)}
         }
       );
 
-      if (response.status === 404) {
+      // 2순위: Gemini 3.5 Pro 폴백
+      if (!response.ok) {
         response = await fetch(
-          `https://generativelanguage.googleapis.com/v1/models/gemini-3.5-flash:generateContent?key=${activeApiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-pro:generateContent?key=${activeApiKey}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -309,7 +311,7 @@ ${JSON.stringify(historySummary, null, 2)}
 
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error?.message || `API 전송 에러! 상태코드: ${response.status}`);
+        throw new Error(errData?.error?.message || response.statusText || `API 전송 에러! 상태코드: ${response.status}`);
       }
 
       const resData = await response.json();

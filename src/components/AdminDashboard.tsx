@@ -24,6 +24,7 @@ import {
 import { Student, Problem, Submission, Attendance, SchoolClass } from '../types';
 import { AdminCreateProblem } from './AdminCreateProblem';
 import { AdminAIReport } from './AdminAIReport';
+import { SettingsModal } from './SettingsModal';
 import { useScrollFadeMask } from '../hooks/useScrollFadeMask';
 
 // ℹ️ 타이틀 옆 미니 인포메이션 툴팁 팝오버 컴포넌트
@@ -69,6 +70,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   // 메인 화면 상태 제어
   const [activeTab, setActiveTab] = useState<'status' | 'students' | 'problems' | 'monthly_grid' | 'classes'>('status');
   const [activeView, setActiveView] = useState<'main' | 'create_problem' | 'ai_report'>('main');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
 
 
@@ -229,8 +231,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       try {
         // firebase.ts의 getDocs 사용하여 problems 로드
         const { collection, getDocs } = await import('firebase/firestore');
-        const { db } = await import('../firebase');
-        const querySnapshot = await getDocs(collection(db, 'problems'));
+        const { getActiveDb } = await import('../firebase');
+        const querySnapshot = await getDocs(collection(getActiveDb(), 'problems'));
         querySnapshot.forEach((doc) => {
           list.push({ id: doc.id, ...doc.data() } as Problem);
         });
@@ -390,9 +392,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       setNewClassName('');
       loadClasses(); // 목록 갱신
       alert(`[${targetName}]이 정상적으로 개설되었습니다!`);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('학급 반 개설에 실패했습니다.');
+      if (err?.code === 'permission-denied' || err?.message?.includes('permission')) {
+        alert('학급 반 개설 실패 (권한 오류)\n\nFirebase 콘솔 ➡️ Firestore Database ➡️ [규칙] 탭에서 "allow read, write: if true;"로 수정한 후 [게시] 버튼을 눌렀는지 확인해 주세요!');
+      } else {
+        alert(`학급 반 개설에 실패했습니다.\n사유: ${err?.message || err}`);
+      }
     }
   };
 
@@ -513,7 +519,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           <div className="logo-dot" style={{ backgroundColor: 'var(--color-point)' }}></div>
           관리자 대시보드
         </div>
-        <div style={{ display: 'flex', gap: '0.75rem', flexShrink: 0, marginLeft: 'auto' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0, marginLeft: 'auto' }}>
+          <button 
+            type="button"
+            onClick={() => setIsSettingsOpen(true)} 
+            className="btn btn-secondary" 
+            style={{ padding: '0.45rem 0.85rem', fontSize: '0.82rem', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}
+          >
+            ⚙️ 설정
+          </button>
           <button onClick={onLogout} className="btn btn-secondary" style={{ padding: '0.45rem 0.85rem', fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
             로그아웃
           </button>
@@ -1517,6 +1531,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         </div>
       )}
 
+      {/* ⚙️ 관리자 환경설정 모달 */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        onConfigUpdated={() => {
+          loadClasses();
+        }}
+      />
     </div>
   );
 };

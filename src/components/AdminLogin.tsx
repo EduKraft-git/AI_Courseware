@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../firebase';
+import { getActiveAuth } from '../firebase';
+import { isFirebaseActive } from '../db';
+import { loadAppConfig } from '../config/appConfig';
 
 interface AdminLoginProps {
   onLoginSuccess: () => void;
@@ -15,16 +17,15 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess, onSwitch
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    // 저장된 관리자 이메일이 있으면 자동 채우기
+    const config = loadAppConfig();
+    if (config.adminEmail) {
+      setEmail(config.adminEmail);
+    }
     return () => {
       if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
     };
   }, []);
-
-  // Firebase 활성화 상태 확인
-  const isFirebaseActive = () => {
-    const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
-    return !!apiKey && apiKey !== 'YOUR_FIREBASE_API_KEY_HERE';
-  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,6 +40,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess, onSwitch
 
     if (isFirebaseActive()) {
       try {
+        const auth = getActiveAuth();
         await signInWithEmailAndPassword(auth, email, password);
         onLoginSuccess();
       } catch (err: any) {
@@ -52,11 +54,11 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess, onSwitch
         setIsLoading(false);
       }
     } else {
-      // 로컬 스토리지 오프라인 모드일 때 임시 패스
+      // 로컬 스토리지 오프라인/데모 모드일 때 통과
       setTimeout(() => {
         setIsLoading(false);
         onLoginSuccess();
-      }, 500);
+      }, 300);
     }
   };
 
@@ -85,7 +87,8 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess, onSwitch
             <label className="form-label">교사 이메일</label>
             <input
               type="email"
-              placeholder="teacher@school.club"
+              autoComplete="username"
+              placeholder="teacher@school.kr"
               className="input-control"
               value={email}
               onChange={(e) => {
@@ -104,6 +107,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess, onSwitch
             <label className="form-label">비밀번호</label>
             <input
               type="password"
+              autoComplete="current-password"
               placeholder="••••••••"
               className="input-control"
               value={password}
@@ -141,6 +145,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess, onSwitch
           paddingTop: '1rem'
         }}>
           <button
+            type="button"
             onClick={onSwitchToStudent}
             style={{
               background: 'none',

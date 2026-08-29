@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { saveProblem, getProblem, getDailyProblems, getAllClasses } from '../db';
 import { Problem, Question, SchoolClass } from '../types';
 import { CHAPTER_STANDARDS_MAP } from '../constants/mathStandards';
+import { getActiveGeminiApiKey } from '../config/appConfig';
 
 interface AdminCreateProblemProps {
   onBack: () => void;
@@ -207,9 +208,9 @@ export const AdminCreateProblem: React.FC<AdminCreateProblemProps> = ({ onBack, 
       return;
     }
 
-    const apiKey = localStorage.getItem('temp_gemini_api_key') || import.meta.env.VITE_GEMINI_API_KEY;
+    const apiKey = getActiveGeminiApiKey();
     if (!apiKey || apiKey === 'YOUR_GEMINI_API_KEY_HERE') {
-      alert('Gemini API 키가 설정되지 않았습니다. 관리자 대시보드 하단의 긴급 키 설정을 이용하시거나 .env 파일에 VITE_GEMINI_API_KEY를 입력해 주세요.');
+      alert('Gemini API 키가 설정되지 않았습니다. 상단 환경설정(⚙️) 메뉴에서 Gemini API 키를 입력해 주세요.');
       return;
     }
 
@@ -289,6 +290,7 @@ JSON 응답 스키마:
 `;
 
     try {
+      // 🚀 1순위: Gemini 3.5 Flash 호출
       let response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`,
         {
@@ -306,10 +308,10 @@ JSON 응답 스키마:
         }
       );
 
-      // 만약 모델 엔드포인트 404 등 실패 시 호환성을 위해 1.5-flash로 자동 폴백
+      // 2순위: Gemini 3.5 Pro 폴백
       if (!response.ok) {
         response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-pro:generateContent?key=${apiKey}`,
           {
             method: 'POST',
             headers: {
@@ -327,7 +329,9 @@ JSON 응답 스키마:
       }
 
       if (!response.ok) {
-        throw new Error(`Gemini API 요청 실패: ${response.statusText}`);
+        const errorData = await response.json().catch(() => ({}));
+        const detailedMsg = errorData?.error?.message || response.statusText || `HTTP ${response.status}`;
+        throw new Error(`Gemini API 요청 실패 (${detailedMsg})`);
       }
 
       const data = await response.json();

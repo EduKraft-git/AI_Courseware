@@ -12,15 +12,23 @@ import {
   onSnapshot,
   orderBy
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { getActiveDb } from './firebase';
+import { loadAppConfig } from './config/appConfig';
 import { Student, Problem, Submission, Attendance, SubmissionAttempt, SchoolClass } from './types';
 
 // Firebase 연동이 활성화되어 있는지 판단하는 헬퍼 함수
-// .env에 실제 Firebase API Key가 설정되어 있는지 확인합니다.
-const isFirebaseActive = (): boolean => {
-  const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
-  return !!apiKey && apiKey !== 'YOUR_FIREBASE_API_KEY_HERE';
+// 환경변수 또는 사용자 커스텀 설정(localStorage)에 유효한 Firebase 설정이 있는지 확인합니다.
+export const isFirebaseActive = (): boolean => {
+  const config = loadAppConfig();
+  if (config.firebaseConfig && config.firebaseConfig.apiKey && config.firebaseConfig.apiKey !== 'YOUR_FIREBASE_API_KEY_HERE') {
+    return true;
+  }
+  const envKey = import.meta.env.VITE_FIREBASE_API_KEY;
+  return !!envKey && envKey !== 'YOUR_FIREBASE_API_KEY_HERE';
 };
+
+// 🌟 런타임에 동적으로 변경되는 Firestore DB 인스턴스를 항상 안전하게 참조하는 헬퍼
+const getDb = () => getActiveDb();
 
 // ==========================================
 // 1. 학생(Students) CRUD
@@ -30,9 +38,9 @@ const isFirebaseActive = (): boolean => {
 export const getAllStudents = async (classId?: string): Promise<Student[]> => {
   if (isFirebaseActive()) {
     try {
-      let q = query(collection(db, 'students'));
+      let q = query(collection(getDb(), 'students'));
       if (classId) {
-        q = query(collection(db, 'students'), where('classId', '==', classId));
+        q = query(collection(getDb(), 'students'), where('classId', '==', classId));
       }
       const querySnapshot = await getDocs(q);
       const students: Student[] = [];
@@ -41,11 +49,12 @@ export const getAllStudents = async (classId?: string): Promise<Student[]> => {
       });
       return students.sort((a, b) => Number(a.id) - Number(b.id));
     } catch (e) {
-      console.error('Firebase DB 에러, 로컬 저장소로 대체합니다.', e);
+      console.error('Firebase DB 에러 (학생 목록 조회)', e);
+      return [];
     }
   }
   
-  // 로컬 스토리지 백업 모드
+  // 로컬 스토리지 데모 모드
   const localData = localStorage.getItem('mock_students');
   const students: Student[] = localData ? JSON.parse(localData) : [];
   const filtered = classId ? students.filter(s => s.classId === classId) : students;
@@ -57,7 +66,7 @@ export const addStudent = async (student: Student): Promise<void> => {
   const docId = `${student.classId}_${student.id}`;
   if (isFirebaseActive()) {
     try {
-      await setDoc(doc(db, 'students', docId), {
+      await setDoc(doc(getDb(), 'students', docId), {
         id: student.id,
         classId: student.classId,
         name: student.name,
@@ -65,11 +74,12 @@ export const addStudent = async (student: Student): Promise<void> => {
       });
       return;
     } catch (e) {
-      console.error('Firebase DB 에러', e);
+      console.error('Firebase DB 에러 (학생 추가)', e);
+      throw e;
     }
   }
 
-  // 로컬 스토리지 백업
+  // 로컬 스토리지 데모 모드
   const students = await getAllStudents();
   if (students.some(s => s.id === student.id && s.classId === student.classId)) {
     throw new Error('이미 이 학급에 등록된 번호입니다.');
@@ -83,16 +93,17 @@ export const updateStudent = async (student: Student): Promise<void> => {
   const docId = `${student.classId}_${student.id}`;
   if (isFirebaseActive()) {
     try {
-      await updateDoc(doc(db, 'students', docId), {
+      await updateDoc(doc(getDb(), 'students', docId), {
         name: student.name
       });
       return;
     } catch (e) {
-      console.error('Firebase DB 에러', e);
+      console.error('Firebase DB 에러 (학생 수정)', e);
+      throw e;
     }
   }
 
-  // 로컬 스토리지 백업
+  // 로컬 스토리지 데모 모드
   const students = await getAllStudents();
   const index = students.findIndex(s => s.id === student.id && s.classId === student.classId);
   if (index !== -1) {
@@ -106,14 +117,15 @@ export const deleteStudent = async (classId: string, id: string): Promise<void> 
   const docId = `${classId}_${id}`;
   if (isFirebaseActive()) {
     try {
-      await deleteDoc(doc(db, 'students', docId));
+      await deleteDoc(doc(getDb(), 'students', docId));
       return;
     } catch (e) {
-      console.error('Firebase DB 에러', e);
+      console.error('Firebase DB 에러 (학생 삭제)', e);
+      throw e;
     }
   }
 
-  // 로컬 스토리지 백업
+  // 로컬 스토리지 데모 모드
   let students = await getAllStudents();
   students = students.filter(s => !(s.id === id && s.classId === classId));
   localStorage.setItem('mock_students', JSON.stringify(students));
@@ -127,7 +139,7 @@ export const deleteStudent = async (classId: string, id: string): Promise<void> 
 export const getProblem = async (id: string): Promise<Problem | null> => {
   if (isFirebaseActive()) {
     try {
-      const docRef = doc(db, 'problems', id);
+      const docRef = doc(getDb(), 'problems', id);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         return { id: docSnap.id, ...docSnap.data() } as Problem;
@@ -135,7 +147,7 @@ export const getProblem = async (id: string): Promise<Problem | null> => {
       
       // 하위 호환성 및 날짜 문자열로 조회를 시도했을 경우 쿼리로 대응
       if (id.length === 10 && id.includes('-')) {
-        const q = query(collection(db, 'problems'), where('date', '==', id));
+        const q = query(collection(getDb(), 'problems'), where('date', '==', id));
         const querySnapshot = await getDocs(q);
         if (!querySnapshot.empty) {
           const firstDoc = querySnapshot.docs[0];
@@ -144,11 +156,12 @@ export const getProblem = async (id: string): Promise<Problem | null> => {
       }
       return null;
     } catch (e) {
-      console.error('Firebase DB 에러', e);
+      console.error('Firebase DB 에러 (문제 조회)', e);
+      return null;
     }
   }
 
-  // 로컬 스토리지 백업
+  // 로컬 스토리지 데모 모드
   const localData = localStorage.getItem('mock_problems');
   const problems: Problem[] = localData ? JSON.parse(localData) : [];
   const found = problems.find(p => p.id === id) || problems.find(p => p.date === id);
@@ -159,7 +172,7 @@ export const getProblem = async (id: string): Promise<Problem | null> => {
 export const getDailyProblems = async (date: string, classId?: string): Promise<Problem[]> => {
   if (isFirebaseActive()) {
     try {
-      const q = query(collection(db, 'problems'), where('date', '==', date));
+      const q = query(collection(getDb(), 'problems'), where('date', '==', date));
       const querySnapshot = await getDocs(q);
       const list: Problem[] = [];
       querySnapshot.forEach((doc) => {
@@ -171,11 +184,12 @@ export const getDailyProblems = async (date: string, classId?: string): Promise<
       });
       return list;
     } catch (e) {
-      console.error('Firebase DB 에러', e);
+      console.error('Firebase DB 에러 (일일 문제 조회)', e);
+      return [];
     }
   }
 
-  // 로컬 스토리지 백업
+  // 로컬 스토리지 데모 모드
   const localData = localStorage.getItem('mock_problems');
   const problems: Problem[] = localData ? JSON.parse(localData) : [];
   const daily = problems.filter(p => p.date === date);
@@ -192,7 +206,7 @@ export const subscribeDailyProblems = (
 ): (() => void) => {
   if (isFirebaseActive()) {
     try {
-      const q = query(collection(db, 'problems'), where('date', '==', date));
+      const q = query(collection(getDb(), 'problems'), where('date', '==', date));
       const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const list: Problem[] = [];
         querySnapshot.forEach((doc) => {
@@ -230,7 +244,7 @@ export const saveProblem = async (problem: Problem): Promise<void> => {
 
   if (isFirebaseActive()) {
     try {
-      await setDoc(doc(db, 'problems', docId), {
+      await setDoc(doc(getDb(), 'problems', docId), {
         id: docId,
         date: problem.date,
         grade: problem.grade,
@@ -258,11 +272,11 @@ export const deleteProblem = async (id: string): Promise<void> => {
   if (isFirebaseActive()) {
     try {
       // 1. 배포된 문제 세트 파괴
-      await deleteDoc(doc(db, 'problems', id));
+      await deleteDoc(doc(getDb(), 'problems', id));
       
       // 2. 연관된 학생들의 모든 제출 기록(submissions) 일괄 조회 후 완전 파괴
       const qSubmissions = query(
-        collection(db, 'submissions'),
+        collection(getDb(), 'submissions'),
         where('problemId', '==', id)
       );
       const subSnapshot = await getDocs(qSubmissions);
@@ -302,9 +316,9 @@ export const deleteProblem = async (id: string): Promise<void> => {
 export const getDailyAttendance = async (date: string, classId?: string): Promise<Attendance[]> => {
   if (isFirebaseActive()) {
     try {
-      let q = query(collection(db, 'attendance'), where('date', '==', date));
+      let q = query(collection(getDb(), 'attendance'), where('date', '==', date));
       if (classId) {
-        q = query(collection(db, 'attendance'), where('date', '==', date), where('classId', '==', classId));
+        q = query(collection(getDb(), 'attendance'), where('date', '==', date), where('classId', '==', classId));
       }
       const querySnapshot = await getDocs(q);
       const attendances: Attendance[] = [];
@@ -313,11 +327,12 @@ export const getDailyAttendance = async (date: string, classId?: string): Promis
       });
       return attendances;
     } catch (e) {
-      console.error('Firebase DB 에러', e);
+      console.error('Firebase DB 에러 (출결 조회)', e);
+      return [];
     }
   }
 
-  // 로컬 스토리지 백업
+  // 로컬 스토리지 데모 모드
   const localData = localStorage.getItem('mock_attendance');
   const attendances: Attendance[] = localData ? JSON.parse(localData) : [];
   const daily = attendances.filter(a => a.date === date);
@@ -336,9 +351,9 @@ export const setStudentAttendance = async (
     try {
       if (status === 'present') {
         // 출석이면 결석 기록 문서 자체를 제거
-        await deleteDoc(doc(db, 'attendance', docId));
+        await deleteDoc(doc(getDb(), 'attendance', docId));
       } else {
-        await setDoc(doc(db, 'attendance', docId), {
+        await setDoc(doc(getDb(), 'attendance', docId), {
           date,
           classId,
           studentId,
@@ -347,7 +362,8 @@ export const setStudentAttendance = async (
       }
       return;
     } catch (e) {
-      console.error('Firebase DB 에러', e);
+      console.error('Firebase DB 에러 (출결 설정)', e);
+      throw e;
     }
   }
 
@@ -377,7 +393,7 @@ export const getAllStudentSubmissions = async (classId: string, studentId: strin
   if (isFirebaseActive()) {
     try {
       const q = query(
-        collection(db, 'submissions'), 
+        collection(getDb(), 'submissions'), 
         where('classId', '==', classId),
         where('studentId', '==', studentId)
       );
@@ -404,7 +420,7 @@ export const saveComprehensiveReport = async (classId: string, studentId: string
   
   if (isFirebaseActive()) {
     try {
-      await setDoc(doc(db, 'comprehensive_reports', docId), {
+      await setDoc(doc(getDb(), 'comprehensive_reports', docId), {
         classId,
         studentId,
         reportText,
@@ -435,7 +451,7 @@ export const getComprehensiveReport = async (classId: string, studentId: string)
   
   if (isFirebaseActive()) {
     try {
-      const docSnap = await getDoc(doc(db, 'comprehensive_reports', docId));
+      const docSnap = await getDoc(doc(getDb(), 'comprehensive_reports', docId));
       if (docSnap.exists()) {
         return docSnap.data();
       }
@@ -458,7 +474,7 @@ export const getStudentSubmissions = async (dateOrProblemId: string, classId: st
   if (isFirebaseActive()) {
     try {
       const q = query(
-        collection(db, 'submissions'), 
+        collection(getDb(), 'submissions'), 
         where(isProblemId ? 'problemId' : 'date', '==', dateOrProblemId), 
         where('classId', '==', classId),
         where('studentId', '==', studentId)
@@ -507,7 +523,7 @@ export const submitAnswer = async (
 
   if (isFirebaseActive()) {
     try {
-      const docRef = doc(db, 'submissions', docId);
+      const docRef = doc(getDb(), 'submissions', docId);
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
@@ -577,7 +593,7 @@ export const markProblemStarted = async (
 
   if (isFirebaseActive()) {
     try {
-      const docRef = doc(db, 'submissions', docId);
+      const docRef = doc(getDb(), 'submissions', docId);
       const docSnap = await getDoc(docRef);
       if (!docSnap.exists()) {
         // 이미 기록이 있으면 덮어쓰지 않음
@@ -624,7 +640,7 @@ export const getDailySubmissions = async (date: string, classId: string): Promis
   if (isFirebaseActive()) {
     try {
       const q = query(
-        collection(db, 'submissions'), 
+        collection(getDb(), 'submissions'), 
         where('date', '==', date),
         where('classId', '==', classId)
       );
@@ -651,7 +667,7 @@ export const getUnfinishedDates = async (classId: string, studentId: string, tod
   let allProblems: Problem[] = [];
   if (isFirebaseActive()) {
     try {
-      const querySnapshot = await getDocs(collection(db, 'problems'));
+      const querySnapshot = await getDocs(collection(getDb(), 'problems'));
       querySnapshot.forEach((doc) => {
         allProblems.push({ id: doc.id, ...doc.data() } as Problem);
       });
@@ -673,7 +689,7 @@ export const getUnfinishedDates = async (classId: string, studentId: string, tod
   if (isFirebaseActive()) {
     try {
       const q = query(
-        collection(db, 'submissions'), 
+        collection(getDb(), 'submissions'), 
         where('classId', '==', classId),
         where('studentId', '==', studentId)
       );
@@ -694,7 +710,7 @@ export const getUnfinishedDates = async (classId: string, studentId: string, tod
   if (isFirebaseActive()) {
     try {
       const q = query(
-        collection(db, 'attendance'), 
+        collection(getDb(), 'attendance'), 
         where('classId', '==', classId),
         where('studentId', '==', studentId)
       );
@@ -746,7 +762,7 @@ export const getUnfinishedProblems = async (classId: string, studentId: string, 
   let allProblems: Problem[] = [];
   if (isFirebaseActive()) {
     try {
-      const querySnapshot = await getDocs(collection(db, 'problems'));
+      const querySnapshot = await getDocs(collection(getDb(), 'problems'));
       querySnapshot.forEach((doc) => {
         allProblems.push({ id: doc.id, ...doc.data() } as Problem);
       });
@@ -766,7 +782,7 @@ export const getUnfinishedProblems = async (classId: string, studentId: string, 
   if (isFirebaseActive()) {
     try {
       const q = query(
-        collection(db, 'submissions'),
+        collection(getDb(), 'submissions'),
         where('classId', '==', classId),
         where('studentId', '==', studentId)
       );
@@ -787,7 +803,7 @@ export const getUnfinishedProblems = async (classId: string, studentId: string, 
   if (isFirebaseActive()) {
     try {
       const q = query(
-        collection(db, 'attendance'),
+        collection(getDb(), 'attendance'),
         where('classId', '==', classId),
         where('studentId', '==', studentId)
       );
@@ -842,7 +858,7 @@ export const updateStudentActiveStatus = async (classId: string, studentId: stri
   
   if (isFirebaseActive()) {
     try {
-      await setDoc(doc(db, 'online_status', docId), {
+      await setDoc(doc(getDb(), 'online_status', docId), {
         classId,
         studentId,
         lastActiveAt: timestamp
@@ -871,7 +887,7 @@ export const setStudentOffline = async (classId: string, studentId: string): Pro
   
   if (isFirebaseActive()) {
     try {
-      await deleteDoc(doc(db, 'online_status', docId));
+      await deleteDoc(doc(getDb(), 'online_status', docId));
       return;
     } catch (e) {
       console.error('Firebase DB 에러 (오프라인 설정)', e);
@@ -891,7 +907,7 @@ export const setStudentOffline = async (classId: string, studentId: string): Pro
 export const getOnlineStatuses = async (classId: string): Promise<OnlineStatus[]> => {
   if (isFirebaseActive()) {
     try {
-      const q = query(collection(db, 'online_status'), where('classId', '==', classId));
+      const q = query(collection(getDb(), 'online_status'), where('classId', '==', classId));
       const querySnapshot = await getDocs(q);
       const list: OnlineStatus[] = [];
       querySnapshot.forEach((doc) => {
@@ -912,7 +928,7 @@ export const getOnlineStatuses = async (classId: string): Promise<OnlineStatus[]
 export const getAllProblems = async (): Promise<Problem[]> => {
   if (isFirebaseActive()) {
     try {
-      const querySnapshot = await getDocs(collection(db, 'problems'));
+      const querySnapshot = await getDocs(collection(getDb(), 'problems'));
       const list: Problem[] = [];
       querySnapshot.forEach((doc) => {
         list.push({ id: doc.id, ...doc.data() } as Problem);
@@ -934,7 +950,7 @@ export const subscribeOnlineStatuses = (
 ): (() => void) => {
   if (isFirebaseActive()) {
     try {
-      const q = query(collection(db, 'online_status'), where('classId', '==', classId));
+      const q = query(collection(getDb(), 'online_status'), where('classId', '==', classId));
       const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const list: OnlineStatus[] = [];
         querySnapshot.forEach((doc) => {
@@ -965,7 +981,7 @@ export const getStudentAttendanceList = async (classId: string, studentId: strin
   if (isFirebaseActive()) {
     try {
       const q = query(
-        collection(db, 'attendance'),
+        collection(getDb(), 'attendance'),
         where('classId', '==', classId),
         where('studentId', '==', studentId)
       );
@@ -990,7 +1006,7 @@ export const getClassAllSubmissions = async (classId: string): Promise<Submissio
   if (isFirebaseActive()) {
     try {
       const q = query(
-        collection(db, 'submissions'),
+        collection(getDb(), 'submissions'),
         where('classId', '==', classId)
       );
       const querySnapshot = await getDocs(q);
@@ -1014,7 +1030,7 @@ export const getClassAllAttendances = async (classId: string): Promise<Attendanc
   if (isFirebaseActive()) {
     try {
       const q = query(
-        collection(db, 'attendance'),
+        collection(getDb(), 'attendance'),
         where('classId', '==', classId)
       );
       const querySnapshot = await getDocs(q);
@@ -1041,7 +1057,7 @@ export const subscribeClassSubmissions = (
   if (isFirebaseActive()) {
     try {
       const q = query(
-        collection(db, 'submissions'),
+        collection(getDb(), 'submissions'),
         where('classId', '==', classId)
       );
       const unsubscribe = onSnapshot(q, (querySnapshot) => {
@@ -1075,28 +1091,10 @@ export const getAllClasses = async (): Promise<SchoolClass[]> => {
 
   if (isFirebaseActive()) {
     try {
-      const querySnapshot = await getDocs(collection(db, 'classes'));
+      const querySnapshot = await getDocs(collection(getDb(), 'classes'));
       querySnapshot.forEach((doc) => {
         list.push({ id: doc.id, ...doc.data() } as SchoolClass);
       });
-
-      if (list.length === 0) {
-        // 기본 1반 ~ 6반 Seed 데이터 자동 개설 및 순서 순차 부여
-        const defaultNames = ['1반', '2반', '3반', '4반', '5반', '6반'];
-        const seedList: SchoolClass[] = [];
-        for (let i = 0; i < defaultNames.length; i++) {
-          const name = defaultNames[i];
-          const classData: SchoolClass = {
-            id: name,
-            name: name,
-            createdAt: new Date().toISOString(),
-            sortOrder: i
-          };
-          await setDoc(doc(db, 'classes', name), classData);
-          seedList.push(classData);
-        }
-        return seedList;
-      }
     } catch (e) {
       console.error('Firebase DB 에러 (학급 목록 조회)', e);
     }
@@ -1144,7 +1142,7 @@ export const addClass = async (className: string): Promise<void> => {
 
   if (isFirebaseActive()) {
     try {
-      await setDoc(doc(db, 'classes', className), classData);
+      await setDoc(doc(getDb(), 'classes', className), classData);
       return;
     } catch (e) {
       console.error('Firebase DB 에러 (학급 추가)', e);
@@ -1164,30 +1162,30 @@ export const migrateClassData = async (oldName: string, newName: string): Promis
   if (isFirebaseActive()) {
     try {
       // 1. 학생(students) 이관
-      const studentsSnapshot = await getDocs(query(collection(db, 'students'), where('classId', '==', oldName)));
+      const studentsSnapshot = await getDocs(query(collection(getDb(), 'students'), where('classId', '==', oldName)));
       for (const studentDoc of studentsSnapshot.docs) {
-        await updateDoc(doc(db, 'students', studentDoc.id), { classId: newName });
+        await updateDoc(doc(getDb(), 'students', studentDoc.id), { classId: newName });
       }
 
       // 2. 출결(attendances) 이관
-      const attendancesSnapshot = await getDocs(query(collection(db, 'attendances'), where('classId', '==', oldName)));
+      const attendancesSnapshot = await getDocs(query(collection(getDb(), 'attendances'), where('classId', '==', oldName)));
       for (const attDoc of attendancesSnapshot.docs) {
-        await updateDoc(doc(db, 'attendances', attDoc.id), { classId: newName });
+        await updateDoc(doc(getDb(), 'attendances', attDoc.id), { classId: newName });
       }
 
       // 3. 제출 기록(submissions) 이관
-      const submissionsSnapshot = await getDocs(query(collection(db, 'submissions'), where('classId', '==', oldName)));
+      const submissionsSnapshot = await getDocs(query(collection(getDb(), 'submissions'), where('classId', '==', oldName)));
       for (const subDoc of submissionsSnapshot.docs) {
-        await updateDoc(doc(db, 'submissions', subDoc.id), { classId: newName });
+        await updateDoc(doc(getDb(), 'submissions', subDoc.id), { classId: newName });
       }
 
       // 4. 배포된 문제(problems)의 targetClasses 내 구형 이름 변경 이관
-      const problemsSnapshot = await getDocs(collection(db, 'problems'));
+      const problemsSnapshot = await getDocs(collection(getDb(), 'problems'));
       for (const probDoc of problemsSnapshot.docs) {
         const probData = probDoc.data() as Problem;
         if (probData.targetClasses && probData.targetClasses.includes(oldName)) {
           const updatedTargets = probData.targetClasses.map(c => c === oldName ? newName : c);
-          await updateDoc(doc(db, 'problems', probDoc.id), { targetClasses: updatedTargets });
+          await updateDoc(doc(getDb(), 'problems', probDoc.id), { targetClasses: updatedTargets });
         }
       }
       return;
@@ -1250,7 +1248,7 @@ export const updateClass = async (classId: string, updates: Partial<SchoolClass>
 
     if (isFirebaseActive()) {
       try {
-        const oldDocRef = doc(db, 'classes', oldName);
+        const oldDocRef = doc(getDb(), 'classes', oldName);
         const oldDocSnap = await getDoc(oldDocRef);
         const oldData = oldDocSnap.exists() ? oldDocSnap.data() : {};
 
@@ -1262,7 +1260,7 @@ export const updateClass = async (classId: string, updates: Partial<SchoolClass>
           createdAt: oldData.createdAt || new Date().toISOString(),
           sortOrder: updates.sortOrder !== undefined ? updates.sortOrder : (oldData.sortOrder !== undefined ? oldData.sortOrder : 0)
         };
-        await setDoc(doc(db, 'classes', newName), newClassData);
+        await setDoc(doc(getDb(), 'classes', newName), newClassData);
 
         // ③ 기존 문서 삭제
         await deleteDoc(oldDocRef);
@@ -1292,7 +1290,7 @@ export const updateClass = async (classId: string, updates: Partial<SchoolClass>
   // 단순 순서(sortOrder) 등 명칭 이외의 정보 수정 시
   if (isFirebaseActive()) {
     try {
-      await updateDoc(doc(db, 'classes', classId), updates);
+      await updateDoc(doc(getDb(), 'classes', classId), updates);
       return;
     } catch (e) {
       console.error('Firebase DB 에러 (학급 수정)', e);
@@ -1313,7 +1311,7 @@ export const updateClass = async (classId: string, updates: Partial<SchoolClass>
 export const deleteClass = async (classId: string): Promise<void> => {
   if (isFirebaseActive()) {
     try {
-      await deleteDoc(doc(db, 'classes', classId));
+      await deleteDoc(doc(getDb(), 'classes', classId));
       return;
     } catch (e) {
       console.error('Firebase DB 에러 (학급 삭제)', e);
