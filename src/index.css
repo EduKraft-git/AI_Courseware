@@ -1,6 +1,20 @@
 /* 모든 환경에서 한글/영문 가독성과 정렬이 일치하는 프리미엄 Pretendard 웹폰트 불러오기 */
 @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css");
 
+html {
+  zoom: 1.2; /* 데스크톱/노트북 화면 비율을 120%로 균일 확대 */
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
+}
+
+/* 📱 모바일/태블릿(768px 이하)에서는 화면에 100% 핏(Fit)되도록 줌 보정 및 가로 스크롤 원천 방지 */
+@media (max-width: 768px) {
+  html {
+    zoom: 1 !important;
+  }
+}
+
 :root {
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
   line-height: 1.5;
@@ -62,6 +76,9 @@ input, select, textarea, button {
 
 body {
   min-height: 100vh;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   background-color: var(--bg-primary);
@@ -71,6 +88,8 @@ body {
 
 #root {
   width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -85,6 +104,14 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+  .app-container {
+    padding: 1.25rem 0.85rem;
+  }
 }
 
 /* 헤더 & 네비게이션 (선 없는 플로팅 벤토 블록) */

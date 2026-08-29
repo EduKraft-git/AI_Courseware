@@ -162,7 +162,8 @@ export const SetupModal: React.FC<SetupModalProps> = ({ isOpen, onComplete }) =>
       alignItems: 'center',
       justifyContent: 'center',
       zIndex: 1000,
-      padding: '16px',
+      padding: '12px',
+      boxSizing: 'border-box',
     }}>
       <div style={{
         backgroundColor: '#FFFFFF',
@@ -170,11 +171,13 @@ export const SetupModal: React.FC<SetupModalProps> = ({ isOpen, onComplete }) =>
         maxWidth: '740px',
         width: '100%',
         height: '540px',
+        maxHeight: '92vh',
         display: 'flex',
         flexDirection: 'column',
         boxShadow: '0 20px 40px -12px rgba(0, 0, 0, 0.2)',
         overflow: 'hidden',
         border: '1px solid #E2E8F0',
+        boxSizing: 'border-box',
       }}>
         {/* 모달 상단 헤더 */}
         <div style={{
