@@ -3,7 +3,11 @@
 > **전국 초등 선생님들을 위한 100% 무료, 오픈소스 AI 맞춤형 수학 학습 플랫폼**  
 > 2022/2015 개정 교육과정 및 아이스크림 교과서 성취기준 완벽 연동 🎯
 
+<br />
+
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/EduKraft-git/AI_Courseware)
+
+<br />
 
 ---
 
@@ -31,7 +35,9 @@
 ## 🚀 3분 만에 시작하기 (교사용 가이드)
 
 ### 1단계: Vercel에 무료 배포하기
-1. 상단의 **[Deploy with Vercel]** 파란색 버튼을 클릭합니다.
+아래 버튼을 클릭하여 선생님의 깃허브 계정에 무료 웹사이트를 생성합니다:
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/EduKraft-git/AI_Courseware)
 2. Vercel 및 GitHub 계정으로 로그인 후 **[Deploy]**를 누르면 1분 뒤 선생님만의 웹사이트 주소가 만들어집니다.
 
 ### 2단계: 웹 화면에서 3단계 빠른 설정 (3분)
