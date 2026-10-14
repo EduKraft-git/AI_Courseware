@@ -242,20 +242,24 @@ export const saveProblem = async (problem: Problem): Promise<void> => {
   const docId = problem.id || `${problem.date}_${Date.now()}`;
   problem.id = docId;
 
+  // 💡 Firestore는 undefined 필드가 포함된 데이터를 거부하므로 JSON 직렬화를 통해 완벽 정제
+  const payload = JSON.parse(JSON.stringify({
+    id: docId,
+    date: problem.date,
+    grade: problem.grade,
+    chapter: problem.chapter,
+    type: problem.type,
+    questions: problem.questions,
+    targetClasses: problem.targetClasses && problem.targetClasses.length > 0 ? problem.targetClasses : ['1반']
+  }));
+
   if (isFirebaseActive()) {
     try {
-      await setDoc(doc(getDb(), 'problems', docId), {
-        id: docId,
-        date: problem.date,
-        grade: problem.grade,
-        chapter: problem.chapter,
-        type: problem.type,
-        questions: problem.questions,
-        targetClasses: problem.targetClasses || ['1반']
-      });
+      await setDoc(doc(getDb(), 'problems', docId), payload);
       return;
-    } catch (e) {
-      console.error('Firebase DB 에러', e);
+    } catch (e: any) {
+      console.error('Firebase DB 문제 저장 실패:', e);
+      throw new Error(`Firebase 클라우드에 문제를 저장하지 못했습니다: ${e?.message || e}`);
     }
   }
 

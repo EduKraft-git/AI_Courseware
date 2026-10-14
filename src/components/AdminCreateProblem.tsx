@@ -437,15 +437,18 @@ JSON 응답 스키마:
       const formatted = parsedQuestions.map((q: any, idx: number) => {
         const answers = Array.isArray(q.answers) && q.answers.length > 0 ? q.answers.map((a: any) => String(a).trim()) : ['1'];
         const options = Array.isArray(q.options) && q.options.length > 0 ? q.options.map((o: any) => String(o).trim()) : undefined;
-        return {
+        const questionItem: any = {
           id: idx + 1,
           questionText: q.questionText || `문제 ${idx + 1}`,
-          options,
           answers,
           answerGuide: sanitizeAnswerGuide(q.answerGuide || (options ? '정답 번호를 선택하세요.' : '정답을 입력하세요'), answers),
           hint: q.hint || '문제를 차근차근 다시 읽어보세요.',
           explanation: q.explanation || '차근차근 계산하여 정답을 도출합니다.'
         };
+        if (options && options.length > 0) {
+          questionItem.options = options;
+        }
+        return questionItem;
       });
 
       setPreviewQuestions(formatted);
@@ -506,7 +509,9 @@ JSON 응답 스키마:
         targetClasses
       };
 
-      await saveProblem(problemData);
+      // 💡 Firestore에 안전하게 저장되도록 undefined 속성 정제
+      const sanitizedProblemData = JSON.parse(JSON.stringify(problemData));
+      await saveProblem(sanitizedProblemData);
       alert(`[${selectedDate}] ${grade} ${chapter} (${targetClasses.join(', ')}) 문제가 성공적으로 배포되었습니다!`);
       onBack();
     } catch (err) {
