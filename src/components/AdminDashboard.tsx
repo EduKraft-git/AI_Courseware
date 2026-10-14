@@ -224,29 +224,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
   // 3. 배포된 전체 문제 목록 로드
   const loadAllProblems = async () => {
-    // db.ts에서 전체 문제 조회가 없는 경우를 위해 헬퍼 구현
-    // 로컬 스토리지 또는 Firestore에서 직접 조회
-    const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
-    const isFirebase = !!apiKey && apiKey !== 'YOUR_FIREBASE_API_KEY_HERE';
-
-    let list: Problem[] = [];
-    if (isFirebase) {
-      try {
-        // firebase.ts의 getDocs 사용하여 problems 로드
-        const { collection, getDocs } = await import('firebase/firestore');
-        const { getActiveDb } = await import('../firebase');
-        const querySnapshot = await getDocs(collection(getActiveDb(), 'problems'));
-        querySnapshot.forEach((doc) => {
-          list.push({ id: doc.id, ...doc.data() } as Problem);
-        });
-      } catch (e) {
-        console.error(e);
-      }
-    } else {
-      const localData = localStorage.getItem('mock_problems');
-      list = localData ? JSON.parse(localData) : [];
+    try {
+      const list = await getAllProblems();
+      setProblemsList(list.sort((a, b) => b.date.localeCompare(a.date))); // 최신 날짜순
+    } catch (e) {
+      console.error('배포된 전체 문제 로드 실패:', e);
     }
-    setProblemsList(list.sort((a, b) => b.date.localeCompare(a.date))); // 최신 날짜순
   };
 
   useEffect(() => {
