@@ -1557,6 +1557,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         <AdminDeveloperDashboard />
       )}
 
+      {/* 📱 학생 접속용 QR 코드 모달 */}
+      <StudentQRModal
+        isOpen={isQROpen}
+        onClose={() => setIsQROpen(false)}
+      />
+
       {/* ⚙️ 관리자 환경설정 모달 */}
       <SettingsModal
         isOpen={isSettingsOpen}

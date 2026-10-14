@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { loadAppConfig } from '../config/appConfig';
 import { generateStudentShareUrl } from '../utils/shareConfig';
@@ -9,13 +9,15 @@ interface StudentQRModalProps {
 }
 
 export const StudentQRModal: React.FC<StudentQRModalProps> = ({ isOpen, onClose }) => {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [shareUrl, setShareUrl] = useState('');
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
+  const [loading, setLoading] = useState(true);
   const [copySuccess, setCopySuccess] = useState(false);
   const [hasConfig, setHasConfig] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
+      setLoading(true);
       const config = loadAppConfig();
       const isConfigured = !!(config.firebaseConfig && config.firebaseConfig.apiKey);
       setHasConfig(isConfigured);
@@ -23,24 +25,31 @@ export const StudentQRModal: React.FC<StudentQRModalProps> = ({ isOpen, onClose 
       const url = generateStudentShareUrl(config);
       setShareUrl(url);
 
-      // QR 코드 캔버스 렌더링
-      if (canvasRef.current) {
-        QRCode.toCanvas(
-          canvasRef.current,
-          url,
-          {
-            width: 240,
-            margin: 2,
-            color: {
-              dark: '#000000',
-              light: '#ffffff'
-            }
+      // QRCode를 Data URL(Base64 이미지)로 확실하게 변환
+      QRCode.toDataURL(
+        url,
+        {
+          width: 280,
+          margin: 2,
+          color: {
+            dark: '#000000',
+            light: '#ffffff'
           },
-          (error) => {
-            if (error) console.error('QR 코드 생성 오류:', error);
-          }
-        );
-      }
+          errorCorrectionLevel: 'M'
+        }
+      )
+        .then((dataUrl) => {
+          setQrDataUrl(dataUrl);
+          setLoading(false);
+        })
+        .catch((err) => {
+          console.error('로컬 QR 생성 실패, 온라인 대체 생성기 시도:', err);
+          // 실패 시 fallback: 오픈 API로 QR 코드 보장
+          const fallbackUrl = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(url)}`;
+          setQrDataUrl(fallbackUrl);
+          setLoading(false);
+        });
+
       setCopySuccess(false);
     }
   }, [isOpen]);
@@ -57,18 +66,17 @@ export const StudentQRModal: React.FC<StudentQRModalProps> = ({ isOpen, onClose 
 
   // QR 코드 이미지 파일로 다운로드
   const handleDownloadQR = () => {
-    if (!canvasRef.current) return;
+    if (!qrDataUrl) return;
     const link = document.createElement('a');
-    link.download = '학생접속_QR코드.png';
-    link.href = canvasRef.current.toDataURL('image/png');
+    link.download = '우리반_학생접속_QR코드.png';
+    link.href = qrDataUrl;
     link.click();
   };
 
   // 인쇄하기 창 열기
   const handlePrint = () => {
     const printWindow = window.open('', '_blank');
-    if (!printWindow || !canvasRef.current) return;
-    const qrDataUrl = canvasRef.current.toDataURL('image/png');
+    if (!printWindow || !qrDataUrl) return;
 
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -91,7 +99,7 @@ export const StudentQRModal: React.FC<StudentQRModalProps> = ({ isOpen, onClose 
             }
             h1 { font-size: 24px; margin-bottom: 8px; }
             p { font-size: 15px; color: #555; margin-bottom: 24px; }
-            img { width: 260px; height: 260px; }
+            img { width: 280px; height: 280px; }
             .url {
               word-break: break-all;
               font-size: 12px;
@@ -127,12 +135,12 @@ export const StudentQRModal: React.FC<StudentQRModalProps> = ({ isOpen, onClose 
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        backgroundColor: 'rgba(0, 0, 0, 0.65)',
         backdropFilter: 'blur(6px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 1000,
+        zIndex: 9999,
         padding: '16px'
       }}
       onClick={onClose}
@@ -143,9 +151,9 @@ export const StudentQRModal: React.FC<StudentQRModalProps> = ({ isOpen, onClose 
           color: '#111827',
           borderRadius: '16px',
           width: '100%',
-          maxWidth: '460px',
+          maxWidth: '440px',
           padding: '28px 24px',
-          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
           position: 'relative',
           display: 'flex',
           flexDirection: 'column',
@@ -175,7 +183,7 @@ export const StudentQRModal: React.FC<StudentQRModalProps> = ({ isOpen, onClose 
         </button>
 
         {/* 헤더 */}
-        <div style={{ textAlign: 'center', marginBottom: '18px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '16px' }}>
           <div
             style={{
               display: 'inline-flex',
@@ -219,7 +227,7 @@ export const StudentQRModal: React.FC<StudentQRModalProps> = ({ isOpen, onClose 
           </div>
         )}
 
-        {/* QR 코드 캔버스 컨테이너 (흰색 바탕 및 테두리/그림자) */}
+        {/* QR 코드 이미지 컨테이너 (흰색 바탕 및 테두리/그림자) */}
         <div
           style={{
             backgroundColor: '#FFFFFF',
@@ -230,10 +238,26 @@ export const StudentQRModal: React.FC<StudentQRModalProps> = ({ isOpen, onClose 
             marginBottom: '16px',
             display: 'flex',
             justifyContent: 'center',
-            alignItems: 'center'
+            alignItems: 'center',
+            minHeight: '260px',
+            width: '260px'
           }}
         >
-          <canvas ref={canvasRef} style={{ display: 'block', maxWidth: '100%', height: 'auto' }} />
+          {loading ? (
+            <div style={{ fontSize: '0.88rem', color: '#6B7280', fontWeight: 600 }}>
+              QR 코드 생성 중...
+            </div>
+          ) : qrDataUrl ? (
+            <img
+              src={qrDataUrl}
+              alt="학생 접속용 QR 코드"
+              style={{ width: '100%', height: '100%', display: 'block' }}
+            />
+          ) : (
+            <div style={{ fontSize: '0.88rem', color: '#EF4444' }}>
+              QR 코드를 불러오지 못했습니다.
+            </div>
+          )}
         </div>
 
         {/* 학생 접속 안내 가이드 */}
@@ -244,7 +268,7 @@ export const StudentQRModal: React.FC<StudentQRModalProps> = ({ isOpen, onClose 
             borderRadius: '10px',
             padding: '10px 14px',
             width: '100%',
-            marginBottom: '18px',
+            marginBottom: '16px',
             fontSize: '0.82rem',
             color: '#374151',
             lineHeight: 1.45,
@@ -272,10 +296,11 @@ export const StudentQRModal: React.FC<StudentQRModalProps> = ({ isOpen, onClose 
               transition: 'background-color 0.2s'
             }}
           >
-            {copySuccess ? '✓ 링크 복사 완료!' : '📋 접속 링크 복사'}
+            {copySuccess ? '✓ 복사 완료!' : '📋 링크 복사'}
           </button>
           <button
             onClick={handleDownloadQR}
+            disabled={!qrDataUrl}
             style={{
               flex: 1,
               padding: '10px',
@@ -285,13 +310,14 @@ export const StudentQRModal: React.FC<StudentQRModalProps> = ({ isOpen, onClose 
               color: '#111827',
               border: '1px solid #D1D5DB',
               borderRadius: '8px',
-              cursor: 'pointer'
+              cursor: qrDataUrl ? 'pointer' : 'not-allowed'
             }}
           >
             💾 이미지 저장
           </button>
           <button
             onClick={handlePrint}
+            disabled={!qrDataUrl}
             style={{
               padding: '10px 14px',
               fontSize: '0.85rem',
@@ -300,7 +326,7 @@ export const StudentQRModal: React.FC<StudentQRModalProps> = ({ isOpen, onClose 
               color: 'var(--color-point, #064e3b)',
               border: '1px solid var(--color-point, #064e3b)',
               borderRadius: '8px',
-              cursor: 'pointer'
+              cursor: qrDataUrl ? 'pointer' : 'not-allowed'
             }}
           >
             🖨️ 인쇄
