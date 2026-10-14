@@ -25,6 +25,8 @@ import { Student, Problem, Submission, Attendance, SchoolClass } from '../types'
 import { AdminCreateProblem } from './AdminCreateProblem';
 import { AdminAIReport } from './AdminAIReport';
 import { SettingsModal } from './SettingsModal';
+import { AdminDeveloperDashboard } from './AdminDeveloperDashboard';
+import { preloadGlobalAnalytics } from '../services/analyticsService';
 import { useScrollFadeMask } from '../hooks/useScrollFadeMask';
 
 // ℹ️ 타이틀 옆 미니 인포메이션 툴팁 팝오버 컴포넌트
@@ -68,7 +70,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const { scrollRef: tabScrollRef, fadeMask: tabFadeMask } = useScrollFadeMask();
 
   // 메인 화면 상태 제어
-  const [activeTab, setActiveTab] = useState<'status' | 'students' | 'problems' | 'monthly_grid' | 'classes'>('status');
+  const [activeTab, setActiveTab] = useState<'status' | 'students' | 'problems' | 'monthly_grid' | 'classes' | 'developer'>('status');
   const [activeView, setActiveView] = useState<'main' | 'create_problem' | 'ai_report'>('main');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
@@ -124,6 +126,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
   // 마운트 시 최초 학급 목록 패치 및 첫 번째(맨 위) 반을 디폴트 선택으로 세팅
   useEffect(() => {
+    preloadGlobalAnalytics();
     const initDefaultClass = async () => {
       try {
         const list = await getAllClasses();
@@ -579,6 +582,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             onClick={() => setActiveTab('classes')}
           >
             학급 반 관리
+          </button>
+          <button
+            className={`btn tab-btn-pill ${activeTab === 'developer' ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => setActiveTab('developer')}
+            style={{
+              borderColor: activeTab === 'developer' ? 'var(--color-point)' : 'rgba(6, 78, 59, 0.25)',
+              backgroundColor: activeTab === 'developer' ? 'var(--color-point)' : 'var(--color-point-tint, #ecfdf5)',
+              color: activeTab === 'developer' ? '#FFFFFF' : 'var(--color-point, #064e3b)'
+            }}
+          >
+            개발자 통계
           </button>
         </div>
 
@@ -1529,6 +1543,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ========================================== */}
+      {/* 탭 6: 개발자 통계 */}
+      {/* ========================================== */}
+      {activeTab === 'developer' && (
+        <AdminDeveloperDashboard />
       )}
 
       {/* ⚙️ 관리자 환경설정 모달 */}

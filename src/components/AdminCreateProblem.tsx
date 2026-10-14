@@ -252,6 +252,13 @@ export const AdminCreateProblem: React.FC<AdminCreateProblemProps> = ({ onBack, 
 - ✅ 필수 발문 포맷 예시:
   * "식혜 4/5 L를 3명이 똑같이 나누어 마시려고 합니다. 한 사람이 마실 수 있는 식혜는 몇 L인지 기약분수로 구하세요."
   * "사탕 24개와 초콜릿 36개를 가능한 많은 학생에게 남김없이 똑같이 나누어 주려고 합니다. 몇 명에게 나누어 줄 수 있습니까?"`;
+    } else if (problemType === '객관식 문제') {
+      typeFormatGuide = `
+[🚨 문제 유형: '객관식 문제 (4지선다형)' 엄격한 출제 규칙 - 100% 필수 준수!]
+- 1번 문항부터 마지막 ${questionsCount}번 문항까지 **반드시 4개의 선택지를 options 배열에 담아 4지선다형 객관식**으로 출제하세요.
+- 각 문항의 options 배열에는 4개의 보기를 순서대로 넣으세요 (예: ["12", "14", "16", "18"]).
+- answers 배열에는 정답 보기의 번호(1, 2, 3, 4 중 하나)를 문자열로 넣으세요 (예: ["3"]).
+- answerGuide는 "정답 번호를 선택하세요."로 고정하세요.`;
     }
 
     const prompt = `
@@ -280,60 +287,66 @@ JSON 응답 스키마:
 [
   {
     "id": 1,
-    "questionText": "문제 내용 지문 (예: 5/6 ÷ 2/3의 몫을 기약분수로 구하세요.)",
-    "answers": ["5/4", "1 1/4"],
-    "answerGuide": "기약분수 또는 대분수로 입력하세요 (예: 3/2 또는 1 1/2 형태)",
-    "hint": "분수의 나눗셈은 나누는 분수의 분자와 분모를 바꾼 뒤 곱셈으로 바꾸어 계산할 수 있습니다.",
-    "explanation": "5/6 ÷ 2/3 = 5/6 × 3/2 = (5×3)/(6×2) = 15/12 = 5/4 = 1 1/4입니다."
+    "questionText": "문제 내용 지문",
+    ${problemType === '객관식 문제' ? '"options": ["선택지 1", "선택지 2", "선택지 3", "선택지 4"],' : ''}
+    "answers": ${problemType === '객관식 문제' ? '["3"]' : '["5/4", "1 1/4"]'},
+    "answerGuide": "${problemType === '객관식 문제' ? '정답 번호를 선택하세요.' : '기약분수 또는 대분수로 입력하세요 (예: 3/2 또는 1 1/2 형태)'}",
+    "hint": "개념 힌트",
+    "explanation": "상세 풀이 해설"
   }
 ]
 `;
 
     try {
-      // 🚀 1순위: Gemini 3.5 Flash 호출
-      let response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              temperature: 0.2,
-              responseMimeType: 'application/json'
+      // 🚀 제미나이 모델 다단계 호출 체인 (3.8 -> 3.6 -> 2.0-flash -> 1.5-flash -> 1.5-pro)
+      const candidateModels = [
+        'gemini-3.8-flash',
+        'gemini-3.6-flash',
+        'gemini-2.0-flash',
+        'gemini-1.5-flash',
+        'gemini-1.5-pro'
+      ];
+
+      let response: Response | null = null;
+      let lastErrorMessage = '';
+
+      for (const model of candidateModels) {
+        try {
+          const res = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                  temperature: 0.2,
+                  responseMimeType: 'application/json'
+                }
+              }),
             }
-          }),
-        }
-      );
+          );
 
-      // 2순위: Gemini 3.5 Pro 폴백
-      if (!response.ok) {
-        response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-pro:generateContent?key=${apiKey}`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
-              generationConfig: {
-                temperature: 0.2,
-                responseMimeType: 'application/json'
-              }
-            }),
+          if (res.ok) {
+            response = res;
+            console.log(`Gemini 모델 [${model}] 호출 성공!`);
+            break;
+          } else {
+            const errJson = await res.json().catch(() => ({}));
+            lastErrorMessage = errJson?.error?.message || res.statusText || `HTTP ${res.status}`;
+            console.warn(`Gemini 모델 [${model}] 호출 실패 (${lastErrorMessage}), 다음 모델로 폴백 시도...`);
           }
-        );
+        } catch (fetchErr: any) {
+          lastErrorMessage = fetchErr?.message || '네트워크 오류';
+          console.warn(`Gemini 모델 [${model}] 네트워크 에러, 다음 모델로 폴백 시도...`);
+        }
       }
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const detailedMsg = errorData?.error?.message || response.statusText || `HTTP ${response.status}`;
-        throw new Error(`Gemini API 요청 실패 (${detailedMsg})`);
+      if (!response || !response.ok) {
+        throw new Error(`Gemini API 요청 실패 (최종 오류: ${lastErrorMessage})`);
       }
-
       const data = await response.json();
       const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
       
@@ -424,13 +437,15 @@ JSON 응답 스키마:
       };
 
       // ID 재정렬 및 누락 필드 방어
-      const formatted = parsedQuestions.map((q, idx) => {
-        const answers = Array.isArray(q.answers) && q.answers.length > 0 ? q.answers.map(a => String(a).trim()) : ['0'];
+      const formatted = parsedQuestions.map((q: any, idx: number) => {
+        const answers = Array.isArray(q.answers) && q.answers.length > 0 ? q.answers.map((a: any) => String(a).trim()) : ['1'];
+        const options = Array.isArray(q.options) && q.options.length > 0 ? q.options.map((o: any) => String(o).trim()) : undefined;
         return {
           id: idx + 1,
           questionText: q.questionText || `문제 ${idx + 1}`,
+          options,
           answers,
-          answerGuide: sanitizeAnswerGuide(q.answerGuide || '정답을 입력하세요', answers),
+          answerGuide: sanitizeAnswerGuide(q.answerGuide || (options ? '정답 번호를 선택하세요.' : '정답을 입력하세요'), answers),
           hint: q.hint || '문제를 차근차근 다시 읽어보세요.',
           explanation: q.explanation || '차근차근 계산하여 정답을 도출합니다.'
         };
@@ -634,6 +649,7 @@ JSON 응답 스키마:
                 <option value="단순계산문제">단순계산문제 (연산 중심)</option>
                 <option value="문장제 서술형 문제">문장제 서술형 문제 (이해 중심)</option>
                 <option value="실생활 응용 문제">실생활 응용 문제 (활용 중심)</option>
+                <option value="객관식 문제">객관식 문제 (4지선다형)</option>
               </select>
             </div>
           </div>
@@ -714,15 +730,75 @@ JSON 응답 스키마:
                     />
                   </div>
 
-                  <div className="form-group">
-                    <label className="form-label" style={{ fontSize: '0.85rem' }}>정답 허용 목록 (쉼표로 구분)</label>
-                    <input
-                      type="text"
-                      className="input-control"
-                      value={previewQuestions[inspectIndex].answers.join(', ')}
-                      onChange={(e) => handleQuestionChange(inspectIndex, 'answers', e.target.value)}
-                    />
-                  </div>
+                  {/* 객관식 보기 편집 UI vs 주관식 정답 입력 UI */}
+                  {previewQuestions[inspectIndex].options && previewQuestions[inspectIndex].options.length > 0 ? (
+                    <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                      <label className="form-label" style={{ fontSize: '0.85rem' }}>
+                        객관식 보기 목록 및 정답 지정 (번호 클릭 시 정답으로 지정)
+                      </label>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        {previewQuestions[inspectIndex].options.map((opt, optIdx) => {
+                          const optNum = String(optIdx + 1);
+                          const isCorrect = previewQuestions[inspectIndex].answers.includes(optNum);
+                          return (
+                            <div key={optIdx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  handleQuestionChange(inspectIndex, 'answers', [optNum]);
+                                }}
+                                style={{
+                                  width: '32px',
+                                  height: '32px',
+                                  borderRadius: '50%',
+                                  border: isCorrect ? '2px solid #16a34a' : '1px solid #cbd5e1',
+                                  backgroundColor: isCorrect ? '#16a34a' : '#f8fafc',
+                                  color: isCorrect ? '#ffffff' : '#64748b',
+                                  fontWeight: 700,
+                                  fontSize: '0.85rem',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  flexShrink: 0,
+                                  transition: 'all 0.15s ease'
+                                }}
+                                title={isCorrect ? '현재 정답입니다' : '클릭하여 정답으로 지정'}
+                              >
+                                {optIdx + 1}
+                              </button>
+                              <input
+                                type="text"
+                                className="input-control"
+                                style={{
+                                  flex: 1,
+                                  borderColor: isCorrect ? '#86efac' : undefined,
+                                  backgroundColor: isCorrect ? 'rgba(22, 163, 74, 0.04)' : undefined
+                                }}
+                                value={opt}
+                                onChange={(e) => {
+                                  const newOpts = [...(previewQuestions[inspectIndex].options || [])];
+                                  newOpts[optIdx] = e.target.value;
+                                  handleQuestionChange(inspectIndex, 'options', newOpts);
+                                }}
+                                placeholder={`보기 ${optIdx + 1} 내용`}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="form-group">
+                      <label className="form-label" style={{ fontSize: '0.85rem' }}>정답 허용 목록 (쉼표로 구분)</label>
+                      <input
+                        type="text"
+                        className="input-control"
+                        value={previewQuestions[inspectIndex].answers.join(', ')}
+                        onChange={(e) => handleQuestionChange(inspectIndex, 'answers', e.target.value)}
+                      />
+                    </div>
+                  )}
 
                   <div className="form-group">
                     <label className="form-label" style={{ fontSize: '0.85rem' }}>입력 형식 안내</label>

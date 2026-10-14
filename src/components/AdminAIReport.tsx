@@ -180,37 +180,55 @@ ${JSON.stringify(dataSummary.submissions, null, 2)}
 `;
 
       let responseText = '';
-      
-      // 🚀 1순위: Gemini 3.5 Flash 호출
-      let response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${activeApiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }]
-          })
-        }
-      );
+      // 🚀 제미나이 모델 다단계 호출 체인 (3.8 -> 3.6 -> 2.0-flash -> 1.5-flash -> 1.5-pro)
+      const candidateModels = [
+        'gemini-3.8-flash',
+        'gemini-3.6-flash',
+        'gemini-2.0-flash',
+        'gemini-1.5-flash',
+        'gemini-1.5-pro'
+      ];
 
-      // 2순위: Gemini 3.5 Pro 폴백
-      if (!response.ok) {
-        response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-pro:generateContent?key=${activeApiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }]
-            })
+      let response: Response | null = null;
+      let lastErrorMessage = '';
+
+      for (const model of candidateModels) {
+        try {
+          const res = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${activeApiKey}`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }]
+              }),
+            }
+          );
+
+          if (res.ok) {
+            response = res;
+            console.log(`Gemini 리포트 [${model}] 호출 성공!`);
+            break;
+          } else {
+            const errJson = await res.json().catch(() => ({}));
+            lastErrorMessage = errJson?.error?.message || res.statusText || `HTTP ${res.status}`;
+            console.warn(`Gemini 리포트 [${model}] 호출 실패 (${lastErrorMessage}), 다음 모델로 폴백 시도...`);
           }
-        );
+        } catch (fetchErr: any) {
+          lastErrorMessage = fetchErr?.message || '네트워크 오류';
+          console.warn(`Gemini 리포트 [${model}] 네트워크 에러, 다음 모델로 폴백 시도...`);
+        }
       }
 
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData?.error?.message || response.statusText || `API 전송 에러! 상태코드: ${response.status}`);
+      if (!response || !response.ok) {
+        throw new Error(`Gemini API 요청 실패 (최종 오류: ${lastErrorMessage})`);
       }
+      const data = await response.json();
+
+      
+
 
       const resData = await response.json();
       responseText = resData.candidates?.[0]?.content?.parts?.[0]?.text || '';
@@ -283,36 +301,54 @@ ${JSON.stringify(historySummary, null, 2)}
 `;
 
       let responseText = '';
-      // 🚀 1순위: Gemini 3.5 Flash 호출
-      let response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${activeApiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }]
-          })
-        }
-      );
+      // 🚀 제미나이 모델 다단계 호출 체인 (3.8 -> 3.6 -> 2.0-flash -> 1.5-flash -> 1.5-pro)
+      const candidateModels = [
+        'gemini-3.8-flash',
+        'gemini-3.6-flash',
+        'gemini-2.0-flash',
+        'gemini-1.5-flash',
+        'gemini-1.5-pro'
+      ];
 
-      // 2순위: Gemini 3.5 Pro 폴백
-      if (!response.ok) {
-        response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-pro:generateContent?key=${activeApiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }]
-            })
+      let response: Response | null = null;
+      let lastErrorMessage = '';
+
+      for (const model of candidateModels) {
+        try {
+          const res = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${activeApiKey}`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }]
+              }),
+            }
+          );
+
+          if (res.ok) {
+            response = res;
+            console.log(`Gemini 리포트 [${model}] 호출 성공!`);
+            break;
+          } else {
+            const errJson = await res.json().catch(() => ({}));
+            lastErrorMessage = errJson?.error?.message || res.statusText || `HTTP ${res.status}`;
+            console.warn(`Gemini 리포트 [${model}] 호출 실패 (${lastErrorMessage}), 다음 모델로 폴백 시도...`);
           }
-        );
+        } catch (fetchErr: any) {
+          lastErrorMessage = fetchErr?.message || '네트워크 오류';
+          console.warn(`Gemini 리포트 [${model}] 네트워크 에러, 다음 모델로 폴백 시도...`);
+        }
       }
 
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData?.error?.message || response.statusText || `API 전송 에러! 상태코드: ${response.status}`);
+      if (!response || !response.ok) {
+        throw new Error(`Gemini API 요청 실패 (최종 오류: ${lastErrorMessage})`);
       }
+      const data = await response.json();
+
+
 
       const resData = await response.json();
       responseText = resData.candidates?.[0]?.content?.parts?.[0]?.text || '';

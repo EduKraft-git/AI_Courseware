@@ -452,52 +452,138 @@ export const StudentSolve: React.FC<StudentSolveProps> = ({
             </div>
           </div>
 
-          {/* 답안 입력 폼 (모바일 터치 및 반응형 플렉스 적용) */}
-          <form onSubmit={handleSubmit} style={{ marginTop: '2rem', marginBottom: '2rem' }}>
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'stretch' }}>
-              <input
-                type="text"
-                placeholder="정답 입력"
-                className="input-solve"
-                style={{ 
-                  flex: 1,
-                  minWidth: 0,
-                  border: isSolved ? '2.5px solid var(--color-success)' : undefined,
-                  backgroundColor: isSolved ? 'rgba(16, 185, 129, 0.02)' : undefined,
-                  color: isSolved ? 'var(--color-success)' : undefined
-                }}
-                value={inputValue}
-                onChange={(e) => {
-                  setInputValue(e.target.value);
-                  const currentQ = questions[currentIndex];
-                  if (currentQ) {
-                    setTempInputs(prev => ({ ...prev, [currentQ.id]: e.target.value }));
-                  }
-                }}
-                disabled={isSolved || isSubmitting}
-                autoComplete="off"
-              />
+          {/* 답안 입력 폼 (객관식 4지선다형 vs 주관식 단답형 동적 분기) */}
+          {questions[currentIndex].options && questions[currentIndex].options.length > 0 ? (
+            <form onSubmit={handleSubmit} style={{ marginTop: '1.5rem', marginBottom: '2rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', marginBottom: '1.25rem' }}>
+                {questions[currentIndex].options.map((opt, idx) => {
+                  const optNum = String(idx + 1);
+                  const isSelected = inputValue === optNum;
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        if (isSolved || isSubmitting) return;
+                        setInputValue(optNum);
+                        const currentQ = questions[currentIndex];
+                        if (currentQ) {
+                          setTempInputs(prev => ({ ...prev, [currentQ.id]: optNum }));
+                        }
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.85rem',
+                        padding: '0.95rem 1.15rem',
+                        borderRadius: '12px',
+                        border: isSelected ? '2px solid var(--color-point, #064E3B)' : '1px solid #E2E8F0',
+                        backgroundColor: isSelected ? 'rgba(6, 78, 59, 0.05)' : '#FFFFFF',
+                        boxShadow: 'none',
+                        cursor: isSolved || isSubmitting ? 'default' : 'pointer',
+                        textAlign: 'left',
+                        transition: 'background-color 0.15s ease, border-color 0.15s ease',
+                        width: '100%',
+                        boxSizing: 'border-box'
+                      }}
+                    >
+                      <span style={{
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '50%',
+                        backgroundColor: isSelected ? (isSolved ? '#16A34A' : 'var(--color-point, #064E3B)') : '#F1F5F9',
+                        color: isSelected ? '#FFFFFF' : '#64748B',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 700,
+                        fontSize: '0.85rem',
+                        flexShrink: 0,
+                        transition: 'background-color 0.15s ease, color 0.15s ease'
+                      }}>
+                        {idx + 1}
+                      </span>
+                      <span style={{
+                        fontSize: '0.95rem',
+                        fontWeight: isSelected ? 700 : 400,
+                        color: isSelected ? (isSolved ? '#166534' : 'var(--color-point, #064E3B)') : 'var(--text-primary)',
+                        lineHeight: 1.4,
+                        flex: 1,
+                        transition: 'color 0.15s ease, font-weight 0.15s ease'
+                      }}>
+                        {opt}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
               {!isSolved ? (
                 <button
                   type="submit"
                   className="btn btn-primary"
-                  style={{ whiteSpace: 'nowrap', padding: '0 1.5rem', fontSize: '1rem', borderRadius: '14px', flexShrink: 0 }}
+                  style={{ width: '100%', padding: '0.9rem', fontSize: '1rem', borderRadius: '12px' }}
                   disabled={isSubmitting || !inputValue.trim()}
                 >
-                  제출
+                  선택한 답안 제출
                 </button>
               ) : (
                 <button
                   type="button"
                   onClick={handleNextQuestion}
                   className="btn btn-primary btn-point"
-                  style={{ whiteSpace: 'nowrap', padding: '0 1.25rem', fontSize: '1rem', borderRadius: '14px', flexShrink: 0 }}
+                  style={{ width: '100%', padding: '0.9rem', fontSize: '1rem', borderRadius: '12px' }}
                 >
                   다음 문제
                 </button>
               )}
-            </div>
-          </form>
+            </form>
+          ) : (
+            <form onSubmit={handleSubmit} style={{ marginTop: '2rem', marginBottom: '2rem' }}>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'stretch' }}>
+                <input
+                  type="text"
+                  placeholder="정답 입력"
+                  className="input-solve"
+                  style={{ 
+                    flex: 1,
+                    minWidth: 0,
+                    border: isSolved ? '2.5px solid var(--color-success)' : undefined,
+                    backgroundColor: isSolved ? 'rgba(16, 185, 129, 0.02)' : undefined,
+                    color: isSolved ? 'var(--color-success)' : undefined
+                  }}
+                  value={inputValue}
+                  onChange={(e) => {
+                    setInputValue(e.target.value);
+                    const currentQ = questions[currentIndex];
+                    if (currentQ) {
+                      setTempInputs(prev => ({ ...prev, [currentQ.id]: e.target.value }));
+                    }
+                  }}
+                  disabled={isSolved || isSubmitting}
+                  autoComplete="off"
+                />
+                {!isSolved ? (
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    style={{ whiteSpace: 'nowrap', padding: '0 1.5rem', fontSize: '1rem', borderRadius: '14px', flexShrink: 0 }}
+                    disabled={isSubmitting || !inputValue.trim()}
+                  >
+                    제출
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleNextQuestion}
+                    className="btn btn-primary btn-point"
+                    style={{ whiteSpace: 'nowrap', padding: '0 1.25rem', fontSize: '1rem', borderRadius: '14px', flexShrink: 0 }}
+                  >
+                    다음 문제
+                  </button>
+                )}
+              </div>
+            </form>
+          )}
 
           {/* 실시간 피드백 알림 */}
           {feedback.message && (

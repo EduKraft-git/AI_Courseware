@@ -1086,6 +1086,17 @@ export const subscribeClassSubmissions = (
 };
 
 // 학급 반 목록 조회 (정렬 우선순위 적용 및 시드 데이터 자동 생성)
+// 학급 반 목록 정렬 헬퍼 함수
+const sortClassList = (classList: SchoolClass[]): SchoolClass[] => {
+  return classList.sort((a, b) => {
+    const orderA = a.sortOrder !== undefined ? a.sortOrder : 999;
+    const orderB = b.sortOrder !== undefined ? b.sortOrder : 999;
+    if (orderA !== orderB) return orderA - orderB;
+    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+  });
+};
+
+// 학급 반 목록 조회 (정렬 우선순위 적용 및 좀비 학급 자동 생성 방지)
 export const getAllClasses = async (): Promise<SchoolClass[]> => {
   let list: SchoolClass[] = [];
 
@@ -1095,34 +1106,37 @@ export const getAllClasses = async (): Promise<SchoolClass[]> => {
       querySnapshot.forEach((doc) => {
         list.push({ id: doc.id, ...doc.data() } as SchoolClass);
       });
+      // 🌟 Firebase 모드에서는 Firestore의 실제 저장 상태를 엄격히 존중합니다.
+      return sortClassList(list);
     } catch (e) {
       console.error('Firebase DB 에러 (학급 목록 조회)', e);
     }
-  } else {
-    // 로컬 스토리지 모드 폴백
-    const localData = localStorage.getItem('mock_classes');
-    list = localData ? JSON.parse(localData) : [];
-    if (list.length === 0) {
-      const defaultNames = ['1반', '2반', '3반', '4반', '5반', '6반'];
-      list = defaultNames.map((name, i) => ({
-        id: name,
-        name: name,
-        createdAt: new Date().toISOString(),
-        sortOrder: i
-      }));
-      localStorage.setItem('mock_classes', JSON.stringify(list));
-    }
   }
 
-  // 🌟 sortOrder 오름차순 정렬, 값이 없거나 동일하면 등록일(createdAt) 순서 정렬
-  list.sort((a, b) => {
-    const orderA = a.sortOrder !== undefined ? a.sortOrder : 999;
-    const orderB = b.sortOrder !== undefined ? b.sortOrder : 999;
-    if (orderA !== orderB) return orderA - orderB;
-    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-  });
+  // 로컬 스토리지 모드 폴백 (사용자가 삭제한 상태 영구 보존)
+  const isInitialized = localStorage.getItem('classes_initialized') === 'true';
+  const localData = localStorage.getItem('mock_classes');
 
-  return list;
+  if (localData !== null) {
+    // 💡 사용자가 학급을 삭제하여 빈 배열([])이 되었더라도 그대로 인정하고 좀비 1~6반을 부활시키지 않음!
+    list = JSON.parse(localData);
+  } else if (!isInitialized) {
+    // 💡 앱 최초 실행 시에만 단 1회 1반을 기본 생성
+    const defaultNames = ['1반'];
+    list = defaultNames.map((name, i) => ({
+      id: name,
+      name: name,
+      createdAt: new Date().toISOString(),
+      sortOrder: i
+    }));
+    localStorage.setItem('mock_classes', JSON.stringify(list));
+    localStorage.setItem('classes_initialized', 'true');
+  } else {
+    // 이미 초기화된 적이 있으나 데이터가 없는 경우 빈 목록 유지
+    list = [];
+  }
+
+  return sortClassList(list);
 };
 
 // 학급 반 추가 (맨 뒤 sortOrder로 자동 배치)
@@ -1308,6 +1322,7 @@ export const updateClass = async (classId: string, updates: Partial<SchoolClass>
 };
 
 // 학급 반 삭제
+// 학급 반 삭제 (영구 삭제 보장 및 부활 차단)
 export const deleteClass = async (classId: string): Promise<void> => {
   if (isFirebaseActive()) {
     try {
@@ -1319,9 +1334,10 @@ export const deleteClass = async (classId: string): Promise<void> => {
     }
   }
 
-  // 로컬 폴백
+  // 로컬 폴백 (삭제 상태를 확실히 기억하도록 플래그 갱신)
   const list = await getAllClasses();
   const filtered = list.filter(c => c.id !== classId);
   localStorage.setItem('mock_classes', JSON.stringify(filtered));
+  localStorage.setItem('classes_initialized', 'true');
 };
 

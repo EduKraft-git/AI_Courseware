@@ -10,6 +10,7 @@ export interface Student {
 export interface Question {
   id: number; // 문제 번호 (1, 2, 3...)
   questionText: string; // 문제 내용/발문
+  options?: string[]; // 객관식 4지선다형 보기 목록 (선택사항)
   answers: string[]; // 허용 가능한 정답 목록 (예: ["3/2", "1.5"])
   answerGuide: string; // 정답 입력 형식 안내 (예: "기약분수로 적으세요. 예: 3/2")
   hint: string; // 오답 시 보여줄 개념 힌트 (정답 미포함)
