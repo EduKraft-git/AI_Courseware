@@ -298,13 +298,10 @@ JSON 응답 스키마:
 `;
 
     try {
-      // 🚀 제미나이 모델 다단계 호출 체인 (3.8 -> 3.6 -> 2.0-flash -> 1.5-flash -> 1.5-pro)
+      // 🚀 제미나이 모델 호출 체인 (3.8 -> 3.6)
       const candidateModels = [
         'gemini-3.8-flash',
-        'gemini-3.6-flash',
-        'gemini-2.0-flash',
-        'gemini-1.5-flash',
-        'gemini-1.5-pro'
+        'gemini-3.6-flash'
       ];
 
       let response: Response | null = null;
