@@ -25,6 +25,7 @@ import { Student, Problem, Submission, Attendance, SchoolClass } from '../types'
 import { AdminCreateProblem } from './AdminCreateProblem';
 import { AdminAIReport } from './AdminAIReport';
 import { SettingsModal } from './SettingsModal';
+import { StudentQRModal } from './StudentQRModal';
 import { AdminDeveloperDashboard } from './AdminDeveloperDashboard';
 import { preloadGlobalAnalytics } from '../services/analyticsService';
 import { useScrollFadeMask } from '../hooks/useScrollFadeMask';
@@ -73,6 +74,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [activeTab, setActiveTab] = useState<'status' | 'students' | 'problems' | 'monthly_grid' | 'classes' | 'developer'>('status');
   const [activeView, setActiveView] = useState<'main' | 'create_problem' | 'ai_report'>('main');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isQROpen, setIsQROpen] = useState(false);
   
 
 
@@ -506,6 +508,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           관리자 대시보드
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0, marginLeft: 'auto' }}>
+          <button 
+            type="button"
+            onClick={() => setIsQROpen(true)} 
+            className="btn btn-secondary" 
+            style={{ 
+              padding: '0.45rem 0.85rem', 
+              fontSize: '0.82rem', 
+              whiteSpace: 'nowrap', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '4px',
+              backgroundColor: '#FFFFFF',
+              borderColor: 'var(--color-point, #064e3b)',
+              color: 'var(--color-point, #064e3b)',
+              fontWeight: 600,
+              boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
+            }}
+          >
+            📱 학생 접속 QR
+          </button>
           <button 
             type="button"
             onClick={() => setIsSettingsOpen(true)} 
