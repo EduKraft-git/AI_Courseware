@@ -13,15 +13,14 @@ export const generateStudentShareUrl = (config: AppConfig): string => {
     return window.location.origin + window.location.pathname;
   }
 
-  // 데이터 크기를 최소화하기 위해 키 이름을 한 글자로 단축
+  // 학생 기기에는 Firebase 설정만 전달 (교사의 Gemini API 키는 보안을 위해 제외)
   const payload = {
     a: config.firebaseConfig.apiKey,
     d: config.firebaseConfig.authDomain,
     p: config.firebaseConfig.projectId,
     b: config.firebaseConfig.storageBucket,
     m: config.firebaseConfig.messagingSenderId,
-    i: config.firebaseConfig.appId,
-    g: config.geminiApiKey || ''
+    i: config.firebaseConfig.appId
   };
 
   try {

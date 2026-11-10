@@ -8,9 +8,8 @@ import {
   getDocs, 
   query, 
   where,
-  arrayUnion,
   onSnapshot,
-  orderBy
+  writeBatch
 } from 'firebase/firestore';
 import { getActiveDb } from './firebase';
 import { loadAppConfig } from './config/appConfig';
@@ -112,15 +111,40 @@ export const updateStudent = async (student: Student): Promise<void> => {
   }
 };
 
-// 학생 삭제
+// 학생 삭제 (고아 데이터 방지를 위해 관련 제출 기록, 출결, 리포트, 온라인 상태 일괄 정리)
 export const deleteStudent = async (classId: string, id: string): Promise<void> => {
   const docId = `${classId}_${id}`;
   if (isFirebaseActive()) {
     try {
-      await deleteDoc(doc(getDb(), 'students', docId));
+      const batch = writeBatch(getDb());
+
+      // 1. 학생 기본 문서 삭제
+      batch.delete(doc(getDb(), 'students', docId));
+
+      // 2. 온라인 상태 및 종합 리포트 문서 삭제
+      batch.delete(doc(getDb(), 'online_status', docId));
+      batch.delete(doc(getDb(), 'comprehensive_reports', docId));
+
+      // 3. 학생의 제출 기록(submissions) 쿼리 후 삭제
+      const subSnap = await getDocs(query(
+        collection(getDb(), 'submissions'),
+        where('classId', '==', classId),
+        where('studentId', '==', id)
+      ));
+      subSnap.forEach(d => batch.delete(d.ref));
+
+      // 4. 학생의 출결 기록(attendance) 쿼리 후 삭제
+      const attSnap = await getDocs(query(
+        collection(getDb(), 'attendance'),
+        where('classId', '==', classId),
+        where('studentId', '==', id)
+      ));
+      attSnap.forEach(d => batch.delete(d.ref));
+
+      await batch.commit();
       return;
     } catch (e) {
-      console.error('Firebase DB 에러 (학생 삭제)', e);
+      console.error('Firebase DB 에러 (학생 및 관련 데이터 일괄 삭제)', e);
       throw e;
     }
   }
@@ -129,6 +153,30 @@ export const deleteStudent = async (classId: string, id: string): Promise<void> 
   let students = await getAllStudents();
   students = students.filter(s => !(s.id === id && s.classId === classId));
   localStorage.setItem('mock_students', JSON.stringify(students));
+
+  const localSubs = localStorage.getItem('mock_submissions');
+  if (localSubs) {
+    const subs: Submission[] = JSON.parse(localSubs);
+    localStorage.setItem('mock_submissions', JSON.stringify(subs.filter(s => !(s.classId === classId && s.studentId === id))));
+  }
+
+  const localAtt = localStorage.getItem('mock_attendance');
+  if (localAtt) {
+    const atts: Attendance[] = JSON.parse(localAtt);
+    localStorage.setItem('mock_attendance', JSON.stringify(atts.filter(a => !(a.classId === classId && a.studentId === id))));
+  }
+
+  const localOnline = localStorage.getItem('mock_online_status');
+  if (localOnline) {
+    const onlineList: any[] = JSON.parse(localOnline);
+    localStorage.setItem('mock_online_status', JSON.stringify(onlineList.filter(o => o.id !== docId)));
+  }
+
+  const localReports = localStorage.getItem('mock_comprehensive_reports');
+  if (localReports) {
+    const reports: any[] = JSON.parse(localReports);
+    localStorage.setItem('mock_comprehensive_reports', JSON.stringify(reports.filter(r => r.id !== docId)));
+  }
 };
 
 // ==========================================
@@ -194,7 +242,7 @@ export const getDailyProblems = async (date: string, classId?: string): Promise<
   const problems: Problem[] = localData ? JSON.parse(localData) : [];
   const daily = problems.filter(p => p.date === date);
   return classId 
-    ? daily.filter(p => (p.targetClasses || ['1반']).includes(classId)) 
+    ? daily.filter(p => !p.targetClasses || p.targetClasses.length === 0 || p.targetClasses.includes(classId)) 
     : daily;
 };
 
@@ -211,8 +259,8 @@ export const subscribeDailyProblems = (
         const list: Problem[] = [];
         querySnapshot.forEach((doc) => {
           const data = doc.data() as Omit<Problem, 'id'>;
-          const targetClasses = data.targetClasses || ['1반'];
-          if (!classId || targetClasses.includes(classId)) {
+          const isTarget = !classId || !data.targetClasses || data.targetClasses.length === 0 || data.targetClasses.includes(classId);
+          if (isTarget) {
             list.push({ id: doc.id, ...data } as Problem);
           }
         });
@@ -231,7 +279,7 @@ export const subscribeDailyProblems = (
   const problems: Problem[] = localData ? JSON.parse(localData) : [];
   const daily = problems.filter(p => p.date === date);
   const filtered = classId 
-    ? daily.filter(p => (p.targetClasses || ['1반']).includes(classId)) 
+    ? daily.filter(p => !p.targetClasses || p.targetClasses.length === 0 || p.targetClasses.includes(classId)) 
     : daily;
   callback(filtered);
   return () => {};
@@ -557,6 +605,7 @@ export const submitAnswer = async (
       return;
     } catch (e) {
       console.error('Firebase DB 에러', e);
+      throw e; // 저장이 실패했음을 상위 호출처에 알려 데이터 유실 방지
     }
   }
 
@@ -616,6 +665,7 @@ export const markProblemStarted = async (
       return;
     } catch (e) {
       console.error('Firebase DB 에러 (시작 마커)', e);
+      throw e;
     }
   }
 
@@ -683,10 +733,12 @@ export const getUnfinishedDates = async (classId: string, studentId: string, tod
     allProblems = localData ? JSON.parse(localData) : [];
   }
 
-  // 오늘 이전의 배포된 문제 날짜들 필터링
-  const pastProblemDates = allProblems
-    .map(p => p.date)
-    .filter(d => d < today);
+  // 오늘 이전의 배포된 문제 날짜들 중 해당 학급(classId) 대상인 날짜만 중복 없이 필터링
+  const pastProblemDates = Array.from(new Set(
+    allProblems
+      .filter(p => p.date < today && (!p.targetClasses || p.targetClasses.length === 0 || p.targetClasses.includes(classId)))
+      .map(p => p.date)
+  ));
 
   // 2. 학생의 모든 제출 이력 조회
   let allSubmissions: Submission[] = [];
@@ -778,8 +830,10 @@ export const getUnfinishedProblems = async (classId: string, studentId: string, 
     allProblems = localData ? JSON.parse(localData) : [];
   }
 
-  // 오늘 이전의 배포된 문제들 필터링
-  const pastProblems = allProblems.filter(p => p.date < today);
+  // 오늘 이전의 배포된 문제들 중 해당 학급(classId) 대상인 문제만 필터링
+  const pastProblems = allProblems.filter(
+    p => p.date < today && (!p.targetClasses || p.targetClasses.length === 0 || p.targetClasses.includes(classId))
+  );
 
   // 2. 학생의 모든 제출 이력 조회
   let allSubmissions: Submission[] = [];
@@ -1053,17 +1107,25 @@ export const getClassAllAttendances = async (classId: string): Promise<Attendanc
   return allAtt.filter((a: any) => a.classId === classId);
 };
 
-// 학급 전체 학생의 모든 제출 상태 실시간 구독 리스너 (교사용 대시보드 0.1초 동기화용)
+// 학급 전체 학생의 제출 상태 실시간 구독 리스너 (특정 date 지정 시 해당 날짜만 효율적 구독)
 export const subscribeClassSubmissions = (
   classId: string,
-  onUpdate: (submissions: Submission[]) => void
+  onUpdate: (submissions: Submission[]) => void,
+  date?: string
 ) => {
   if (isFirebaseActive()) {
     try {
-      const q = query(
+      let q = query(
         collection(getDb(), 'submissions'),
         where('classId', '==', classId)
       );
+      if (date) {
+        q = query(
+          collection(getDb(), 'submissions'),
+          where('classId', '==', classId),
+          where('date', '==', date)
+        );
+      }
       const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const list: Submission[] = [];
         querySnapshot.forEach((doc) => {
@@ -1081,7 +1143,8 @@ export const subscribeClassSubmissions = (
   const fetchLocal = () => {
     const localData = localStorage.getItem('mock_submissions');
     const allSubs: Submission[] = localData ? JSON.parse(localData) : [];
-    onUpdate(allSubs.filter(s => s.classId === classId));
+    const filteredByClass = allSubs.filter(s => s.classId === classId);
+    onUpdate(date ? filteredByClass.filter(s => s.date === date) : filteredByClass);
   };
   
   fetchLocal();
@@ -1185,10 +1248,10 @@ export const migrateClassData = async (oldName: string, newName: string): Promis
         await updateDoc(doc(getDb(), 'students', studentDoc.id), { classId: newName });
       }
 
-      // 2. 출결(attendances) 이관
-      const attendancesSnapshot = await getDocs(query(collection(getDb(), 'attendances'), where('classId', '==', oldName)));
+      // 2. 출결(attendance) 이관
+      const attendancesSnapshot = await getDocs(query(collection(getDb(), 'attendance'), where('classId', '==', oldName)));
       for (const attDoc of attendancesSnapshot.docs) {
-        await updateDoc(doc(getDb(), 'attendances', attDoc.id), { classId: newName });
+        await updateDoc(doc(getDb(), 'attendance', attDoc.id), { classId: newName });
       }
 
       // 3. 제출 기록(submissions) 이관
@@ -1223,11 +1286,11 @@ export const migrateClassData = async (oldName: string, newName: string): Promis
   }
 
   // 2. 로컬 출결 이관
-  const localAtt = localStorage.getItem('mock_attendances');
+  const localAtt = localStorage.getItem('mock_attendance');
   if (localAtt) {
     const list: Attendance[] = JSON.parse(localAtt);
     const updated = list.map(a => a.classId === oldName ? { ...a, classId: newName } : a);
-    localStorage.setItem('mock_attendances', JSON.stringify(updated));
+    localStorage.setItem('mock_attendance', JSON.stringify(updated));
   }
 
   // 3. 로컬 제출 기록 이관

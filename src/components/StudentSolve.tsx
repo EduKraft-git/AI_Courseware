@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getProblem, getStudentSubmissions, submitAnswer, markProblemStarted, updateStudentActiveStatus, setStudentOffline } from '../db';
 import { Student, Problem, Question, Submission } from '../types';
+import { checkAnswer } from '../utils/mathAnswer';
 
 // 🌟 입력 형식 안내(answerGuide)에서 실제 문제의 정답이 노출되지 않도록 범용 형식으로 정제하는 함수
 const sanitizeAnswerGuide = (guide?: string, answers?: string[]): string => {
@@ -189,18 +190,6 @@ export const StudentSolve: React.FC<StudentSolveProps> = ({
   const totalQuestions = questions.length;
   const currentStep = currentIndex + 1;
   const progressPercent = Math.min(100, Math.round(((isFinishedAll ? totalQuestions : currentIndex) / totalQuestions) * 100));
-
-  // 정답 문자열 정제 비교 함수
-  const checkAnswer = (studentInput: string, answers: string[]): boolean => {
-    const cleanStr = (str: string) => 
-      str.trim()
-         .replace(/\s+/g, '') // 공백 제거
-         .replace(/,/g, '')   // 쉼표 제거 (있을 시)
-         .toLowerCase();
-
-    const cleanedInput = cleanStr(studentInput);
-    return answers.some(ans => cleanStr(ans) === cleanedInput);
-  };
 
   // 답안 제출 핸들러
   const handleSubmit = async (e: React.FormEvent) => {

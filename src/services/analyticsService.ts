@@ -66,13 +66,26 @@ export const getCachedGlobalAnalyticsSummary = (key: string = 'preset_14'): Glob
   return globalAnalyticsCache[key]?.data || null;
 };
 
-// 한국 시간 기준 YYYY-MM-DD 및 현재 시(Hour) 반환 헬퍼
+// 한국 표준시(KST, Asia/Seoul) 기준 YYYY-MM-DD 및 현재 시(Hour) 반환 헬퍼
 export const getKoreanDateInfo = () => {
   const now = new Date();
-  const offset = now.getTimezoneOffset() * 60000;
-  const localDate = new Date(now.getTime() - offset);
-  const dateStr = localDate.toISOString().split('T')[0];
-  const hourStr = String(now.getHours());
+  const kstFormatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: 'numeric',
+    hour12: false
+  });
+  
+  const parts = kstFormatter.formatToParts(now);
+  const year = parts.find(p => p.type === 'year')?.value || '2026';
+  const month = parts.find(p => p.type === 'month')?.value || '01';
+  const day = parts.find(p => p.type === 'day')?.value || '01';
+  const hour = parts.find(p => p.type === 'hour')?.value || '0';
+
+  const dateStr = `${year}-${month}-${day}`;
+  const hourStr = String(parseInt(hour, 10));
   return { dateStr, hourStr };
 };
 

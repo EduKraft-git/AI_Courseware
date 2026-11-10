@@ -152,15 +152,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     return () => unsubscribe();
   }, [classId, activeView]);
 
-  // 🌟 실시간 학생 과제 제출 상태 구독 리스너 가동 (onSnapshot)
+  // 🌟 실시간 학생 과제 제출 상태 구독 리스너 가동 (선택된 날짜 기준 쿼리로 대역폭 최적화)
   useEffect(() => {
-    const unsubscribe = subscribeClassSubmissions(classId, (allSubs) => {
-      const filtered = allSubs.filter(s => s.date === selectedDate);
-      setDailySubmissions(filtered);
-    });
+    const unsubscribe = subscribeClassSubmissions(classId, (subs) => {
+      setDailySubmissions(subs);
+    }, selectedDate);
 
-    return () => unsubscribe();
-  }, [classId, selectedDate, activeView]);
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [classId, selectedDate]);
 
   // 선택한 문제 세트 ID 변경 시 모니터링할 activeProblem 동기화
   useEffect(() => {
