@@ -377,6 +377,99 @@ p {
   color: var(--text-muted);
 }
 
+/* 🔢 분수 표시 (위아래로 쌓인 분수, 글자색을 그대로 따라감) */
+.frac {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  vertical-align: middle;
+  margin: 0 0.12em;
+  line-height: 1.15;
+  font-size: 0.9em;
+}
+
+.frac-num {
+  padding: 0 0.25em 0.05em;
+  border-bottom: 0.09em solid currentColor;
+}
+
+.frac-den {
+  padding: 0.05em 0.25em 0;
+}
+
+.frac-whole {
+  margin-right: 0.1em;
+  font-size: 1.1em;
+  vertical-align: middle;
+}
+
+/* ✍️ 분수 입력칸: [자연수] [분자 / 분모] */
+.frac-input {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem;
+  background-color: #ffffff;
+  border: 1.5px solid rgba(6, 78, 59, 0.2);
+  border-radius: 14px;
+  box-shadow: 0 2px 10px rgba(6, 78, 59, 0.05);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.frac-input:focus-within {
+  border-color: var(--color-point);
+  box-shadow: 0 0 0 4px rgba(6, 78, 59, 0.18), 0 8px 24px rgba(6, 78, 59, 0.1);
+}
+
+.frac-input.solved {
+  border: 2.5px solid var(--color-success);
+  background-color: rgba(16, 185, 129, 0.02);
+  color: var(--color-success);
+  font-size: 1.5rem;
+  font-weight: 700;
+  justify-content: center;
+}
+
+.frac-input-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.frac-input-bar {
+  width: 100%;
+  height: 2px;
+  border-radius: 1px;
+  background-color: var(--text-primary);
+}
+
+.frac-box {
+  width: 3.6rem;
+  padding: 0.45rem 0.2rem;
+  text-align: center;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  background-color: #ffffff;
+  border: 1.5px solid var(--border-color);
+  border-radius: 10px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.frac-box:focus {
+  border-color: var(--color-point);
+}
+
+.frac-box::placeholder {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
 /* 그리드 레이아웃 */
 .grid {
   display: grid;

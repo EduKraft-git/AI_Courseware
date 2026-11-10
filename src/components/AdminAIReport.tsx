@@ -10,6 +10,8 @@ import {
 } from '../db';
 import { Student, Problem, Submission } from '../types';
 import { getActiveGeminiApiKey } from '../config/appConfig';
+import { callGemini } from '../services/gemini';
+import { MathText } from './MathText';
 
 interface AdminAIReportProps {
   student: Student;
@@ -179,60 +181,8 @@ ${JSON.stringify(dataSummary.submissions, null, 2)}
 - 모든 서술은 불필요한 인사말이나 서론을 완전히 배제하고, 핵심 요점 위주로 각 항목당 2-3줄 이내의 매우 간결한 요약문 형태로만 출력하세요.
 `;
 
-      let responseText = '';
-      // 🚀 제미나이 모델 호출 체인 (3.8 -> 3.6)
-      const candidateModels = [
-        'gemini-3.8-flash',
-        'gemini-3.6-flash'
-      ];
-
-      let response: Response | null = null;
-      let lastErrorMessage = '';
-
-      for (const model of candidateModels) {
-        try {
-          const res = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${activeApiKey}`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }]
-              }),
-            }
-          );
-
-          if (res.ok) {
-            response = res;
-            console.log(`Gemini 리포트 [${model}] 호출 성공!`);
-            break;
-          } else {
-            const errJson = await res.json().catch(() => ({}));
-            lastErrorMessage = errJson?.error?.message || res.statusText || `HTTP ${res.status}`;
-            console.warn(`Gemini 리포트 [${model}] 호출 실패 (${lastErrorMessage}), 다음 모델로 폴백 시도...`);
-          }
-        } catch (fetchErr: any) {
-          lastErrorMessage = fetchErr?.message || '네트워크 오류';
-          console.warn(`Gemini 리포트 [${model}] 네트워크 에러, 다음 모델로 폴백 시도...`);
-        }
-      }
-
-      if (!response || !response.ok) {
-        throw new Error(`Gemini API 요청 실패 (최종 오류: ${lastErrorMessage})`);
-      }
-      const data = await response.json();
-
-      
-
-
-      const resData = await response.json();
-      responseText = resData.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      
-      if (!responseText) {
-        throw new Error('API 응답에서 텍스트 결과를 추출할 수 없습니다.');
-      }
+      // 🚀 Gemini 호출 (바쁠 때 자동 재시도, 빈 응답은 오류로 처리)
+      const responseText = await callGemini(prompt, activeApiKey);
 
       setAiReport(responseText);
     } catch (err) {
@@ -297,59 +247,8 @@ ${JSON.stringify(historySummary, null, 2)}
 - 모든 서술은 불필요한 인사말이나 서론을 완전히 배제하고, 핵심 요점 위주로 각 항목당 2-3줄 이내의 매우 간결한 요약문 형태로만 출력하세요.
 `;
 
-      let responseText = '';
-      // 🚀 제미나이 모델 호출 체인 (3.8 -> 3.6)
-      const candidateModels = [
-        'gemini-3.8-flash',
-        'gemini-3.6-flash'
-      ];
-
-      let response: Response | null = null;
-      let lastErrorMessage = '';
-
-      for (const model of candidateModels) {
-        try {
-          const res = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${activeApiKey}`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }]
-              }),
-            }
-          );
-
-          if (res.ok) {
-            response = res;
-            console.log(`Gemini 리포트 [${model}] 호출 성공!`);
-            break;
-          } else {
-            const errJson = await res.json().catch(() => ({}));
-            lastErrorMessage = errJson?.error?.message || res.statusText || `HTTP ${res.status}`;
-            console.warn(`Gemini 리포트 [${model}] 호출 실패 (${lastErrorMessage}), 다음 모델로 폴백 시도...`);
-          }
-        } catch (fetchErr: any) {
-          lastErrorMessage = fetchErr?.message || '네트워크 오류';
-          console.warn(`Gemini 리포트 [${model}] 네트워크 에러, 다음 모델로 폴백 시도...`);
-        }
-      }
-
-      if (!response || !response.ok) {
-        throw new Error(`Gemini API 요청 실패 (최종 오류: ${lastErrorMessage})`);
-      }
-      const data = await response.json();
-
-
-
-      const resData = await response.json();
-      responseText = resData.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      
-      if (!responseText) {
-        throw new Error('API 응답에서 텍스트 결과를 추출할 수 없습니다.');
-      }
+      // 🚀 Gemini 호출 (바쁠 때 자동 재시도, 빈 응답은 오류로 처리)
+      const responseText = await callGemini(prompt, activeApiKey);
 
       setComprehensiveReport(responseText);
       // DB에 캐시 저장하여 재호출 낭비 방지!
@@ -510,7 +409,7 @@ ${JSON.stringify(historySummary, null, 2)}
                           }}
                         >
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '0.5rem' }}>
-                            <span style={{ fontWeight: 600, fontSize: '0.9rem', flex: 1 }}>Q{q.id}. {q.questionText}</span>
+                            <span style={{ fontWeight: 600, fontSize: '0.9rem', flex: 1 }}>Q{q.id}. <MathText text={q.questionText} /></span>
                             {studentSub ? (
                               studentSub.isCompleted ? (
                                 <span className="badge badge-green">완료</span>
@@ -541,7 +440,7 @@ ${JSON.stringify(historySummary, null, 2)}
                                       color: hist.isCorrect ? 'var(--color-success)' : 'var(--color-error)'
                                     }}
                                   >
-                                    <span>시도 {hIdx + 1}: "{hist.submittedValue}"</span>
+                                    <span>시도 {hIdx + 1}: "<MathText text={hist.submittedValue} />"</span>
                                     <span>{hist.elapsedTime}초 ({hist.isCorrect ? 'O' : 'X'})</span>
                                   </div>
                                 ))}

@@ -2,6 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { getProblem, getStudentSubmissions, submitAnswer, markProblemStarted, updateStudentActiveStatus, setStudentOffline } from '../db';
 import { Student, Problem, Question, Submission } from '../types';
 import { checkAnswer } from '../utils/mathAnswer';
+import { isFractionAnswer } from '../utils/fraction';
+import { MathText } from './MathText';
+import { FractionInput } from './FractionInput';
 
 // 🌟 입력 형식 안내(answerGuide)에서 실제 문제의 정답이 노출되지 않도록 범용 형식으로 정제하는 함수
 const sanitizeAnswerGuide = (guide?: string, answers?: string[]): string => {
@@ -190,6 +193,15 @@ export const StudentSolve: React.FC<StudentSolveProps> = ({
   const totalQuestions = questions.length;
   const currentStep = currentIndex + 1;
   const progressPercent = Math.min(100, Math.round(((isFinishedAll ? totalQuestions : currentIndex) / totalQuestions) * 100));
+
+  // 입력값 변경 (글자 입력칸과 분수 입력칸이 함께 사용, 문제별 임시 보관소에도 저장)
+  const handleInputChange = (value: string) => {
+    setInputValue(value);
+    const currentQ = questions[currentIndex];
+    if (currentQ) {
+      setTempInputs(prev => ({ ...prev, [currentQ.id]: value }));
+    }
+  };
 
   // 답안 제출 핸들러
   const handleSubmit = async (e: React.FormEvent) => {
@@ -387,7 +399,7 @@ export const StudentSolve: React.FC<StudentSolveProps> = ({
                         <div><strong>고민한 시간:</strong> {totalSeconds}초</div>
                         {wrongValues.length > 0 ? (
                           <div style={{ color: '#ef4444', marginTop: '0.25rem', wordBreak: 'break-all' }}>
-                            <strong>내가 쓴 오답:</strong> {wrongValues.join(', ')}
+                            <strong>내가 쓴 오답:</strong> <MathText text={wrongValues.join(', ')} />
                           </div>
                         ) : (
                           <div style={{ color: 'var(--color-success)', marginTop: '0.25rem' }}>
@@ -399,7 +411,7 @@ export const StudentSolve: React.FC<StudentSolveProps> = ({
                         {wrongValues.length > 0 && (
                           <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px dashed var(--border-color)', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                             <div style={{ fontWeight: 700, color: 'var(--color-success)', marginBottom: '0.25rem' }}>문제 풀이:</div>
-                            <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>{q.explanation || '상세 풀이가 준비되지 않았습니다.'}</div>
+                            <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.4' }}><MathText text={q.explanation || '상세 풀이가 준비되지 않았습니다.'} /></div>
                           </div>
                         )}
                       </div>
@@ -422,7 +434,7 @@ export const StudentSolve: React.FC<StudentSolveProps> = ({
               
               {/* 문제 발문 */}
               <h2 style={{ fontSize: '1.4rem', fontWeight: 600, lineHeight: '1.5', wordBreak: 'keep-all', marginBottom: '1.5rem' }}>
-                {questions[currentIndex].questionText}
+                <MathText text={questions[currentIndex].questionText} />
               </h2>
             </div>
 
@@ -437,7 +449,8 @@ export const StudentSolve: React.FC<StudentSolveProps> = ({
               marginBottom: '1rem',
               lineHeight: '1.4'
             }}>
-              <strong>입력 형식 안내:</strong> {sanitizeAnswerGuide(questions[currentIndex].answerGuide, questions[currentIndex].answers)}
+              <strong>입력 형식 안내:</strong> <MathText text={sanitizeAnswerGuide(questions[currentIndex].answerGuide, questions[currentIndex].answers)} />
+              {isFractionAnswer(questions[currentIndex].answers) && ' 분수는 분자·분모 칸에 쓰고, 대분수는 자연수 칸도 채워요.'}
             </div>
           </div>
 
@@ -500,7 +513,7 @@ export const StudentSolve: React.FC<StudentSolveProps> = ({
                         flex: 1,
                         transition: 'color 0.15s ease, font-weight 0.15s ease'
                       }}>
-                        {opt}
+                        <MathText text={opt} />
                       </span>
                     </button>
                   );
@@ -529,28 +542,33 @@ export const StudentSolve: React.FC<StudentSolveProps> = ({
           ) : (
             <form onSubmit={handleSubmit} style={{ marginTop: '2rem', marginBottom: '2rem' }}>
               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'stretch' }}>
-                <input
-                  type="text"
-                  placeholder="정답 입력"
-                  className="input-solve"
-                  style={{ 
-                    flex: 1,
-                    minWidth: 0,
-                    border: isSolved ? '2.5px solid var(--color-success)' : undefined,
-                    backgroundColor: isSolved ? 'rgba(16, 185, 129, 0.02)' : undefined,
-                    color: isSolved ? 'var(--color-success)' : undefined
-                  }}
-                  value={inputValue}
-                  onChange={(e) => {
-                    setInputValue(e.target.value);
-                    const currentQ = questions[currentIndex];
-                    if (currentQ) {
-                      setTempInputs(prev => ({ ...prev, [currentQ.id]: e.target.value }));
-                    }
-                  }}
-                  disabled={isSolved || isSubmitting}
-                  autoComplete="off"
-                />
+                {isFractionAnswer(questions[currentIndex].answers) ? (
+                  // 정답이 분수인 문제: 분자·분모 칸에 나누어 적는 분수 입력칸
+                  <FractionInput
+                    key={questions[currentIndex].id}
+                    value={inputValue}
+                    onChange={handleInputChange}
+                    solved={isSolved}
+                    disabled={isSubmitting}
+                  />
+                ) : (
+                  <input
+                    type="text"
+                    placeholder="정답 입력"
+                    className="input-solve"
+                    style={{ 
+                      flex: 1,
+                      minWidth: 0,
+                      border: isSolved ? '2.5px solid var(--color-success)' : undefined,
+                      backgroundColor: isSolved ? 'rgba(16, 185, 129, 0.02)' : undefined,
+                      color: isSolved ? 'var(--color-success)' : undefined
+                    }}
+                    value={inputValue}
+                    onChange={(e) => handleInputChange(e.target.value)}
+                    disabled={isSolved || isSubmitting}
+                    autoComplete="off"
+                  />
+                )}
                 {!isSolved ? (
                   <button
                     type="submit"
@@ -606,7 +624,7 @@ export const StudentSolve: React.FC<StudentSolveProps> = ({
                 힌트 (푸는 방법)
               </h4>
               <p style={{ fontSize: '0.9rem', lineHeight: '1.6', color: 'var(--text-primary)', whiteSpace: 'pre-wrap' }}>
-                {questions[currentIndex].hint || '해당 문제의 핵심 공식을 다시 한 번 차분히 점검해 보세요.'}
+                <MathText text={questions[currentIndex].hint || '해당 문제의 핵심 공식을 다시 한 번 차분히 점검해 보세요.'} />
               </p>
             </div>
           )}
@@ -631,7 +649,7 @@ export const StudentSolve: React.FC<StudentSolveProps> = ({
                   문제 풀이 (다시 풀어 성공 완료!)
                 </h4>
                 <p style={{ fontSize: '0.9rem', lineHeight: '1.6', color: 'var(--text-primary)', whiteSpace: 'pre-wrap' }}>
-                  {currentQ.explanation || '상세 풀이가 준비되지 않았습니다. 교과서를 바탕으로 오답 노트를 복기해 보세요.'}
+                  <MathText text={currentQ.explanation || '상세 풀이가 준비되지 않았습니다. 교과서를 바탕으로 오답 노트를 복기해 보세요.'} />
                 </p>
               </div>
             );

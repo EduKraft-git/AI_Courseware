@@ -3,6 +3,8 @@ import { saveProblem, getProblem, getDailyProblems, getAllClasses } from '../db'
 import { Problem, Question, SchoolClass } from '../types';
 import { CHAPTER_STANDARDS_MAP } from '../constants/mathStandards';
 import { getActiveGeminiApiKey } from '../config/appConfig';
+import { callGemini, parseQuestionsJson } from '../services/gemini';
+import { MathText } from './MathText';
 
 interface AdminCreateProblemProps {
   onBack: () => void;
@@ -51,6 +53,7 @@ export const AdminCreateProblem: React.FC<AdminCreateProblemProps> = ({ onBack, 
   const [classList, setClassList] = useState<SchoolClass[]>([]);
 
   const [isLoading, setIsLoading] = useState(false);
+  const [statusMsg, setStatusMsg] = useState(''); // 재시도 등 진행 안내 문구
   const [previewQuestions, setPreviewQuestions] = useState<Question[]>([]);
   const [isGenerated, setIsGenerated] = useState(false);
   const [inspectIndex, setInspectIndex] = useState(0);
@@ -298,113 +301,24 @@ JSON 응답 스키마:
 `;
 
     try {
-      // 🚀 제미나이 모델 호출 체인 (3.8 -> 3.6)
-      const candidateModels = [
-        'gemini-3.8-flash',
-        'gemini-3.6-flash'
-      ];
-
-      let response: Response | null = null;
-      let lastErrorMessage = '';
-
-      for (const model of candidateModels) {
-        try {
-          const res = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: {
-                  temperature: 0.2,
-                  responseMimeType: 'application/json'
-                }
-              }),
-            }
-          );
-
-          if (res.ok) {
-            response = res;
-            console.log(`Gemini 모델 [${model}] 호출 성공!`);
-            break;
-          } else {
-            const errJson = await res.json().catch(() => ({}));
-            lastErrorMessage = errJson?.error?.message || res.statusText || `HTTP ${res.status}`;
-            console.warn(`Gemini 모델 [${model}] 호출 실패 (${lastErrorMessage}), 다음 모델로 폴백 시도...`);
-          }
-        } catch (fetchErr: any) {
-          lastErrorMessage = fetchErr?.message || '네트워크 오류';
-          console.warn(`Gemini 모델 [${model}] 네트워크 에러, 다음 모델로 폴백 시도...`);
-        }
-      }
-
-      if (!response || !response.ok) {
-        throw new Error(`Gemini API 요청 실패 (최종 오류: ${lastErrorMessage})`);
-      }
-      const data = await response.json();
-      const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
-      
-      // 🌟 견고한 다단계 JSON 파싱 헬퍼 함수
-      const parseSafeQuestionsJson = (text: string): Question[] => {
-        let cleaned = text.replace(/```json/gi, '').replace(/```/g, '').trim();
-
-        // 가장 바깥쪽 대괄호 [ ... ] 영역만 정밀 슬라이스
-        const start = cleaned.indexOf('[');
-        const end = cleaned.lastIndexOf(']');
-        if (start !== -1 && end !== -1 && end > start) {
-          cleaned = cleaned.substring(start, end + 1);
-        }
-
-        // 1차 표준 파싱
-        try {
-          const res = JSON.parse(cleaned);
-          if (Array.isArray(res)) return res;
-        } catch (e1) {
-          console.warn('1차 표준 JSON 파싱 실패, 자동 정제 복구 시도:', e1);
-        }
-
-        // 2차 정제 파싱: 후행 쉼표(trailing comma) 및 제어문자 정제
-        try {
-          const sanitized = cleaned
-            .replace(/,\s*([\]}])/g, '$1') // 쉼표 뒤 닫는 괄호 제거
-            .replace(/[\u0000-\u0009\u000B\u000C\u000E-\u001F]/g, ''); // 불필요 제어문자 제거
-          const res = JSON.parse(sanitized);
-          if (Array.isArray(res)) return res;
-        } catch (e2) {
-          console.warn('2차 정제 JSON 파싱 실패, 개별 객체 정규식 추출 시도:', e2);
-        }
-
-        // 3차 복구: 개별 문제 객체 { ... } 단위 정규식 추출
-        try {
-          const objectMatches = cleaned.match(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g);
-          if (objectMatches && objectMatches.length > 0) {
-            const recovered: any[] = [];
-            for (const objStr of objectMatches) {
-              try {
-                const cleanedObj = objStr.replace(/,\s*([\]}])/g, '$1');
-                recovered.push(JSON.parse(cleanedObj));
-              } catch (_) {}
-            }
-            if (recovered.length > 0) return recovered;
-          }
-        } catch (e3) {}
-
-        throw new Error('생성된 문제의 형식이 올바르지 않습니다.');
-      };
-
+      // 🚀 Gemini 호출 (바쁠 때 자동 재시도, 응답 형식이 깨지면 1회 다시 생성)
       let parsedQuestions: Question[] = [];
-      try {
-        parsedQuestions = parseSafeQuestionsJson(rawText);
-      } catch (parseError) {
-        console.error('JSON 파싱 실패 원본:', rawText);
-        throw new Error('생성된 문제의 형식이 올바르지 않습니다. 다시 시도해 주세요.');
+      for (let attempt = 0; attempt < 2 && parsedQuestions.length === 0; attempt++) {
+        const rawText = await callGemini(prompt, apiKey, {
+          json: true,
+          temperature: 0.2,
+          onRetry: setStatusMsg
+        });
+        try {
+          parsedQuestions = parseQuestionsJson(rawText);
+        } catch {
+          console.warn('JSON 형식 오류, 다시 생성합니다. 원본:', rawText);
+          setStatusMsg('생성 형식이 올바르지 않아 다시 생성합니다...');
+        }
       }
 
-      if (!Array.isArray(parsedQuestions) || parsedQuestions.length === 0) {
-        throw new Error('문제가 정상적으로 생성되지 않았습니다.');
+      if (parsedQuestions.length === 0) {
+        throw new Error('문제가 정상적으로 생성되지 않았습니다. 다시 시도해 주세요.');
       }
 
       // 🌟 입력 형식 안내(answerGuide)에서 실제 정답 유출을 원천 방지하는 헬퍼 함수
@@ -459,6 +373,7 @@ JSON 응답 스키마:
       alert(`문제 생성 중 오류가 발생했습니다: ${err.message || err}`);
     } finally {
       setIsLoading(false);
+      setStatusMsg('');
     }
   };
 
@@ -662,7 +577,7 @@ JSON 응답 스키마:
             style={{ width: '100%', padding: '0.85rem' }}
             disabled={isLoading || !selectedDate}
           >
-            {isLoading ? 'Gemini AI 문제 생성 중...' : 'AI 문제 생성하기'}
+            {isLoading ? (statusMsg || 'Gemini AI 문제 생성 중...') : 'AI 문제 생성하기'}
           </button>
         </div>
 
@@ -730,6 +645,9 @@ JSON 응답 스키마:
                       value={previewQuestions[inspectIndex].questionText}
                       onChange={(e) => handleQuestionChange(inspectIndex, 'questionText', e.target.value)}
                     />
+                    <div style={{ marginTop: '0.5rem', fontSize: '0.95rem', color: 'var(--text-secondary)' }}>
+                      학생 화면 미리보기: <MathText text={previewQuestions[inspectIndex].questionText} />
+                    </div>
                   </div>
 
                   {/* 객관식 보기 편집 UI vs 주관식 정답 입력 UI */}
