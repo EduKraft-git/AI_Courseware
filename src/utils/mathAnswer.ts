@@ -1,9 +1,11 @@
 // 수학 답안 정규화 및 채점 유틸리티
 // 대분수(예: 1 1/2)와 가분수(예: 11/2)를 명확히 구분하면서,
-// 불필요한 슬래시 공백 및 다중 공백을 정돈하여 공정한 채점을 보장합니다.
+// 다양한 분수 표기(1과 1/2, \frac{3}{4} 등)와 공백을 정돈하여 공정한 채점을 보장합니다.
+
+import { normalizeFractionText } from './fraction';
 
 export const normalizeAnswer = (str: string): string => {
-  return str
+  return normalizeFractionText(str)
     .trim()
     .replace(/,/g, '') // 쉼표 제거 (예: 1,000 -> 1000)
     .replace(/\s*\/\s*/g, '/') // 분수 슬래시 앞뒤 공백 제거 (예: "1 / 2" -> "1/2")
@@ -16,4 +18,3 @@ export const checkAnswer = (studentInput: string, answers: string[]): boolean =>
   const cleanedInput = normalizeAnswer(studentInput);
   return answers.some(ans => normalizeAnswer(ans) === cleanedInput);
 };
-

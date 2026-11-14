@@ -5,6 +5,7 @@ import { CHAPTER_STANDARDS_MAP } from '../constants/mathStandards';
 import { getActiveGeminiApiKey } from '../config/appConfig';
 import { callGemini, parseQuestionsJson } from '../services/gemini';
 import { getKoreanDateInfo } from '../services/analyticsService';
+import { isFractionAnswer, normalizeFractionText } from '../utils/fraction';
 import { MathText } from './MathText';
 import { InfoTooltip } from './InfoTooltip';
 
@@ -238,13 +239,13 @@ ${standardPromptBlock}
 1. 위 [🚨 문제 유형 출제 규칙]을 1번부터 마지막 ${questionsCount}번 문제까지 **100% 동일한 형식으로 엄격히 일관되게 유지**하세요. (마지막 문항 변형 절대 금지!)
 2. 단원 성취기준과 출제 범위 제한 지침을 준수하여, 아직 배우지 않은 상위 학년 개념이 절대 포함되지 않도록 하세요.
 3. 초등학교 ${grade} 학생의 인지 발달 수준과 단원 특성에 꼭 맞는 난이도로 명확하게 출제하세요.
-4. 학생들이 키보드로 손쉽게 입력할 수 있는 답안 형식을 고려하세요. (분수는 '3/2' 또는 '1 1/2' 형태 허용, 소수는 소수점 표기)
+4. 분수는 지문과 정답(answers) 모두에서 LaTeX(\\frac)이나 한글('1과 1/2') 대신 반드시 '3/4' 또는 대분수 '1 1/2' 표기를 사용하세요 (화면에서 자동으로 위아래로 쌓인 실제 분수 모양과 분수 전용 입력칸으로 변환됩니다).
 5. ⚠️ [중요: 입력 형식 안내(answerGuide)] 
    - answerGuide에는 **절대로 해당 문제의 실제 정답이나 정답 숫자를 예시로 넣지 마세요!**
    - 학생에게 정답이 노출되지 않도록, 오직 일반적인 입력 형태와 형식만 안내해야 합니다.
    - 예시 지침:
      * 자연수: "자연수로 입력하세요."
-     * 분수: "기약분수로 입력하세요 (예: 1/2 형태)" 또는 "가분수 또는 대분수로 입력하세요 (예: 3/2 또는 1 1/2 형태)"
+     * 분수: "분자·분모 칸에 기약분수로 입력하세요 (대분수는 자연수 칸도 입력)." (절대로 '1/2 형태'나 슬래시 기호 입력을 안내하지 마세요!)
      * 소수: "소수로 입력하세요 (예: 0.5 형태)"
      * 단위: "단위를 제외하고 숫자만 입력하세요."
 6. hint(힌트)에는 절대로 정답이나 직접적인 수식을 노출하지 말고, 학생이 스스로 생각할 수 있는 핵심 개념이나 풀이 방향에 대한 힌트만 적어주세요.
@@ -258,7 +259,7 @@ JSON 응답 스키마:
     "questionText": "문제 내용 지문",
     ${problemType === '객관식 문제' ? '"options": ["선택지 1", "선택지 2", "선택지 3", "선택지 4"],' : ''}
     "answers": ${problemType === '객관식 문제' ? '["3"]' : '["5/4", "1 1/4"]'},
-    "answerGuide": "${problemType === '객관식 문제' ? '정답 번호를 선택하세요.' : '기약분수 또는 대분수로 입력하세요 (예: 3/2 또는 1 1/2 형태)'}",
+    "answerGuide": "${problemType === '객관식 문제' ? '정답 번호를 선택하세요.' : '분자·분모 칸에 기약분수로 입력하세요 (대분수는 자연수 칸도 입력).'}",
     "hint": "개념 힌트",
     "explanation": "상세 풀이 해설"
   }
@@ -286,8 +287,11 @@ JSON 응답 스키마:
         throw new Error('문제가 정상적으로 생성되지 않았습니다. 다시 시도해 주세요.');
       }
 
-      // 🌟 입력 형식 안내(answerGuide)에서 실제 정답 유출을 원천 방지하는 헬퍼 함수
+      // 🌟 입력 형식 안내(answerGuide)에서 실제 정답 유출을 방지하고 분수 전용 입력칸 안내로 통일하는 헬퍼 함수
       const sanitizeAnswerGuide = (guide: string, answers: string[]): string => {
+        if (isFractionAnswer(answers)) {
+          return '분자·분모 칸에 기약분수로 입력하세요 (대분수는 자연수 칸도 입력).';
+        }
         if (!guide) return '정답을 알맞은 형식으로 입력하세요.';
         let sanitized = guide;
         for (const ans of answers) {
@@ -296,11 +300,7 @@ JSON 응답 스키마:
           const escaped = cleanAns.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
           const regex = new RegExp(escaped, 'g');
           if (regex.test(sanitized)) {
-            if (cleanAns.includes('/') && cleanAns.includes(' ')) {
-              sanitized = sanitized.replace(regex, '1 1/2');
-            } else if (cleanAns.includes('/')) {
-              sanitized = sanitized.replace(regex, '1/2');
-            } else if (cleanAns.includes('.')) {
+            if (cleanAns.includes('.')) {
               sanitized = sanitized.replace(regex, '0.5');
             } else if (/^\d+$/.test(cleanAns)) {
               sanitized = sanitized.replace(regex, '10');
@@ -312,17 +312,21 @@ JSON 응답 스키마:
         return sanitized;
       };
 
-      // ID 재정렬 및 누락 필드 방어
+      // ID 재정렬, 분수 표기 정규화 및 누락 필드 방어
       const formatted = parsedQuestions.map((q: any, idx: number) => {
-        const answers = Array.isArray(q.answers) && q.answers.length > 0 ? q.answers.map((a: any) => String(a).trim()) : ['1'];
-        const options = Array.isArray(q.options) && q.options.length > 0 ? q.options.map((o: any) => String(o).trim()) : undefined;
+        const answers = Array.isArray(q.answers) && q.answers.length > 0
+          ? q.answers.map((a: any) => normalizeFractionText(String(a)).trim())
+          : ['1'];
+        const options = Array.isArray(q.options) && q.options.length > 0
+          ? q.options.map((o: any) => normalizeFractionText(String(o)).trim())
+          : undefined;
         const questionItem: any = {
           id: idx + 1,
-          questionText: q.questionText || `문제 ${idx + 1}`,
+          questionText: normalizeFractionText(q.questionText || `문제 ${idx + 1}`),
           answers,
           answerGuide: sanitizeAnswerGuide(q.answerGuide || (options ? '정답 번호를 선택하세요.' : '정답을 입력하세요'), answers),
-          hint: q.hint || '문제를 차근차근 다시 읽어보세요.',
-          explanation: q.explanation || '차근차근 계산하여 정답을 도출합니다.'
+          hint: normalizeFractionText(q.hint || '문제를 차근차근 다시 읽어보세요.'),
+          explanation: normalizeFractionText(q.explanation || '차근차근 계산하여 정답을 도출합니다.')
         };
         if (options && options.length > 0) {
           questionItem.options = options;
@@ -602,17 +606,48 @@ JSON 응답 스키마:
                   backgroundColor: '#ffffff',
                   marginBottom: '1.5rem'
                 }}>
+                  {/* 학생에게 실제로 보이는 화면 미리보기 (분수가 위아래로 쌓인 온전한 형태로 표시) */}
+                  <div style={{
+                    padding: '1rem 1.15rem',
+                    marginBottom: '1.25rem',
+                    borderRadius: '10px',
+                    backgroundColor: 'rgba(6, 78, 59, 0.04)',
+                    border: '1px solid rgba(6, 78, 59, 0.18)'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.4rem' }}>
+                      <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--color-point)' }}>
+                        학생 화면 실제 분수 표시 미리보기
+                      </span>
+                      {isFractionAnswer(previewQuestions[inspectIndex].answers) && (
+                        <span className="badge badge-green" style={{ fontSize: '0.72rem' }}>
+                          학생에게 분수 전용 입력칸([자연수] [분자/분모]) 자동 제공
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 700, lineHeight: '1.8', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+                      <MathText text={previewQuestions[inspectIndex].questionText} />
+                    </div>
+                    <div style={{ fontSize: '0.95rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <strong style={{ color: 'var(--text-primary)' }}>정답 표시:</strong>
+                      <span>
+                        {previewQuestions[inspectIndex].answers.map((ans, idx) => (
+                          <React.Fragment key={idx}>
+                            {idx > 0 && ', '}
+                            <MathText text={ans} />
+                          </React.Fragment>
+                        ))}
+                      </span>
+                    </div>
+                  </div>
+
                   <div className="form-group">
-                    <label className="form-label" style={{ fontSize: '0.85rem' }}>문제 발문 (지문)</label>
+                    <label className="form-label" style={{ fontSize: '0.85rem' }}>문제 발문 원문 수정 (분수는 3/4, 대분수는 1 1/2로 적으면 위처럼 분수 모양으로 변환됩니다)</label>
                     <textarea
-                      rows={3}
+                      rows={2}
                       className="input-control"
                       value={previewQuestions[inspectIndex].questionText}
                       onChange={(e) => handleQuestionChange(inspectIndex, 'questionText', e.target.value)}
                     />
-                    <div style={{ marginTop: '0.5rem', fontSize: '0.95rem', color: 'var(--text-secondary)' }}>
-                      학생 화면 미리보기: <MathText text={previewQuestions[inspectIndex].questionText} />
-                    </div>
                   </div>
 
                   {/* 객관식 보기 편집 UI vs 주관식 정답 입력 UI */}

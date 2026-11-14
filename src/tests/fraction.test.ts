@@ -35,12 +35,32 @@ describe('분수 입력칸 값 변환 (fraction)', () => {
 
   it('정답에 분수가 있을 때만 분수 입력칸을 쓴다', () => {
     expect(isFractionAnswer(['5/4', '1 1/4'])).toBe(true);
+    expect(isFractionAnswer(['\\frac{3}{4}'])).toBe(true);
+    expect(isFractionAnswer(['1과 1/2'])).toBe(true);
+    expect(isFractionAnswer(['4분의 3'])).toBe(true);
     expect(isFractionAnswer(['12'])).toBe(false);
     expect(isFractionAnswer(['0.75'])).toBe(false);
   });
 });
 
 describe('글 속 분수 찾기 (splitFractions / MathText)', () => {
+  it('AI가 생성한 한글 대분수, 한글 분수, LaTeX 분수, 공백 슬래시도 모두 분수로 변환한다', () => {
+    expect(splitFractions('1과 1/2 + 2와 3 / 4')).toEqual([
+      { whole: '1', num: '1', den: '2' },
+      ' + ',
+      { whole: '2', num: '3', den: '4' }
+    ]);
+    expect(splitFractions('1과 2분의 1과 4분의 3')).toEqual([
+      { whole: '1', num: '1', den: '2' },
+      '과 ',
+      { whole: '', num: '3', den: '4' }
+    ]);
+    expect(splitFractions('$1\\frac{1}{2} \\div \\frac{3}{4}$')).toEqual([
+      { whole: '1', num: '1', den: '2' },
+      ' ÷ ',
+      { whole: '', num: '3', den: '4' }
+    ]);
+  });
   it('문장 속 분수와 대분수를 골라낸다', () => {
     expect(splitFractions('식혜 4/5 L를 3명이, 1 1/2 컵')).toEqual([
       '식혜 ',

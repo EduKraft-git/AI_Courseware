@@ -7,8 +7,11 @@ import { trackGlobalSolve } from '../services/analyticsService';
 import { MathText } from './MathText';
 import { FractionInput } from './FractionInput';
 
-// 🌟 입력 형식 안내(answerGuide)에서 실제 문제의 정답이 노출되지 않도록 범용 형식으로 정제하는 함수
+// 🌟 입력 형식 안내(answerGuide)에서 실제 문제의 정답이 노출되지 않도록 범용 형식으로 정제하고, 분수 답안은 분수 전용 입력칸 안내로 통일하는 함수
 const sanitizeAnswerGuide = (guide?: string, answers?: string[]): string => {
+  if (answers && isFractionAnswer(answers)) {
+    return '분자·분모 칸에 알맞은 분수를 적고, 대분수는 자연수 칸도 함께 채워요.';
+  }
   if (!guide) return '정답을 알맞은 형식으로 입력하세요.';
   let sanitized = guide;
   if (answers && answers.length > 0) {
@@ -18,11 +21,7 @@ const sanitizeAnswerGuide = (guide?: string, answers?: string[]): string => {
       const escaped = cleanAns.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const regex = new RegExp(escaped, 'g');
       if (regex.test(sanitized)) {
-        if (cleanAns.includes('/') && cleanAns.includes(' ')) {
-          sanitized = sanitized.replace(regex, '1 1/2');
-        } else if (cleanAns.includes('/')) {
-          sanitized = sanitized.replace(regex, '1/2');
-        } else if (cleanAns.includes('.')) {
+        if (cleanAns.includes('.')) {
           sanitized = sanitized.replace(regex, '0.5');
         } else if (/^\d+$/.test(cleanAns)) {
           sanitized = sanitized.replace(regex, '10');
@@ -453,7 +452,6 @@ export const StudentSolve: React.FC<StudentSolveProps> = ({
               lineHeight: '1.4'
             }}>
               <strong>입력 형식 안내:</strong> <MathText text={sanitizeAnswerGuide(questions[currentIndex].answerGuide, questions[currentIndex].answers)} />
-              {isFractionAnswer(questions[currentIndex].answers) && ' 분수는 분자·분모 칸에 쓰고, 대분수는 자연수 칸도 채워요.'}
             </div>
           </div>
 
