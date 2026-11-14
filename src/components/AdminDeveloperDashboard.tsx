@@ -3,8 +3,7 @@ import {
   getGlobalAnalyticsSummary, 
   getCachedGlobalAnalyticsSummary, 
   getKoreanDateInfo, 
-  GlobalAnalyticsSummary, 
-  DailyAnalyticsData 
+  GlobalAnalyticsSummary
 } from '../services/analyticsService';
 
 // ℹ️ 툴팁 안내 데이터 인터페이스
@@ -234,7 +233,7 @@ export const AdminDeveloperDashboard: React.FC = () => {
     } catch {}
   }, [chartType, periodMode, visibleMetrics]);
 
-  const [isLoading, setIsLoading] = useState(true);
+  const [_isLoading, setIsLoading] = useState(true);
   const [isMainAnimated, setIsMainAnimated] = useState(false);
   const [isAuxAnimated, setIsAuxAnimated] = useState(false);
 

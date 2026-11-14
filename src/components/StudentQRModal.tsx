@@ -115,8 +115,8 @@ export const StudentQRModal: React.FC<StudentQRModalProps> = ({ isOpen, onClose 
           <div class="container">
             <h1>📱 아침활동 AI 코스웨어</h1>
             <p>태블릿 카메라로 QR 코드를 비추어 접속하세요!</p>
-            <img src="${qrDataUrl}" alt="접속 QR코드" />
-            <div class="url">${shareUrl}</div>
+            <img id="qr-img" alt="접속 QR코드" />
+            <div id="qr-url" class="url"></div>
           </div>
           <script>
             window.onload = function() {
@@ -128,6 +128,12 @@ export const StudentQRModal: React.FC<StudentQRModalProps> = ({ isOpen, onClose 
       </html>
     `);
     printWindow.document.close();
+
+    // 문자열 직접 삽입 대신 DOM 속성/텍스트로 주입하여 스크립트 삽입(XSS) 위험 원천 차단
+    const imgEl = printWindow.document.getElementById('qr-img') as HTMLImageElement | null;
+    if (imgEl) imgEl.src = qrDataUrl;
+    const urlEl = printWindow.document.getElementById('qr-url');
+    if (urlEl) urlEl.textContent = shareUrl;
   };
 
   return (

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { loadAppConfig, saveAppConfig, clearAppConfig, CustomFirebaseConfig } from '../config/appConfig';
 import { parseFirebaseConfigText } from '../utils/configParser';
-import { testGeminiApiKey, testFirebaseConnection } from '../services/dynamicFirebase';
+import { testGeminiApiKey, testFirebaseConnection, initFirebaseWithConfig } from '../services/dynamicFirebase';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -71,6 +71,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
       return;
     }
     saveAppConfig(geminiKey, parsedFbConfig, config.adminEmail);
+    // 새로고침 없이도 변경된 Firebase 설정이 즉시 적용되도록 런타임 인스턴스 갱신
+    initFirebaseWithConfig(parsedFbConfig);
     setSaveSuccess(true);
     setTimeout(() => {
       onConfigUpdated();

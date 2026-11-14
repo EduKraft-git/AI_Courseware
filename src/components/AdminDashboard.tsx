@@ -4,12 +4,10 @@ import {
   addStudent, 
   deleteStudent, 
   updateStudent,
-  getProblem, 
   getDailyProblems,
   deleteProblem,
   getDailyAttendance, 
   setStudentAttendance, 
-  getDailySubmissions,
   subscribeOnlineStatuses,
   OnlineStatus,
   getAllProblems,
@@ -27,40 +25,9 @@ import { AdminAIReport } from './AdminAIReport';
 import { SettingsModal } from './SettingsModal';
 import { StudentQRModal } from './StudentQRModal';
 import { AdminDeveloperDashboard } from './AdminDeveloperDashboard';
-import { preloadGlobalAnalytics } from '../services/analyticsService';
+import { preloadGlobalAnalytics, getKoreanDateInfo } from '../services/analyticsService';
 import { useScrollFadeMask } from '../hooks/useScrollFadeMask';
-
-// ℹ️ 타이틀 옆 미니 인포메이션 툴팁 팝오버 컴포넌트
-const InfoTooltip: React.FC<{ text: React.ReactNode }> = ({ text }) => {
-  const [isOpen, setIsOpen] = useState(false);
-
-  return (
-    <span 
-      className="info-tooltip-wrapper"
-      onMouseEnter={() => setIsOpen(true)}
-      onMouseLeave={() => setIsOpen(false)}
-    >
-      <button
-        type="button"
-        className="info-tooltip-btn"
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          setIsOpen(!isOpen);
-        }}
-        onBlur={() => setIsOpen(false)}
-        aria-label="안내 도움말"
-      >
-        i
-      </button>
-      {isOpen && (
-        <div className="info-tooltip-popover">
-          {text}
-        </div>
-      )}
-    </span>
-  );
-};
+import { InfoTooltip } from './InfoTooltip';
 
 interface AdminDashboardProps {
   onLogout: () => void;
@@ -75,16 +42,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [activeView, setActiveView] = useState<'main' | 'create_problem' | 'ai_report'>('main');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isQROpen, setIsQROpen] = useState(false);
-  
 
-
-  // 날짜 설정
-  const getTodayString = () => {
-    const now = new Date();
-    const offset = now.getTimezoneOffset() * 60000;
-    return new Date(now.getTime() - offset).toISOString().split('T')[0];
-  };
-  const [selectedDate, setSelectedDate] = useState(getTodayString());
+  // 한국 시간(KST) 기준 날짜 설정
+  const [selectedDate, setSelectedDate] = useState(() => getKoreanDateInfo().dateStr);
   const [classId, setClassId] = useState('1반'); // 학급 반 관리 상태 신설
 
   // 데이터 캐시 상태
@@ -262,7 +222,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
         const filteredProbs = allProbs.filter(p => 
           p.date.startsWith(prefix) && 
-          (p.targetClasses || ['1반']).includes(classId)
+          (!p.targetClasses || p.targetClasses.length === 0 || p.targetClasses.includes(classId))
         );
         filteredProbs.sort((a, b) => a.date.localeCompare(b.date));
         setMonthlyProblems(filteredProbs);

@@ -6,6 +6,7 @@ import { Student } from './types';
 import { loadAppConfig, saveAppConfig } from './config/appConfig';
 import { parseStudentShareUrl } from './utils/shareConfig';
 import { initFirebaseWithConfig } from './services/dynamicFirebase';
+import { trackGlobalVisit } from './services/analyticsService';
 
 // 컴포넌트 임포트
 import { StudentLogin } from './components/StudentLogin';
@@ -85,7 +86,8 @@ function App() {
       }
     }
 
-    // 2. 인증 및 설정 상태 확인
+    // 2. 방문 통계 기록 및 인증 상태 확인
+    trackGlobalVisit();
     const cleanup = checkAuthStatus();
     return () => {
       if (cleanup) cleanup();
@@ -108,17 +110,17 @@ function App() {
     setSolveDate(null);
   };
 
-  // 교사 로그아웃
+  // 교사 로그아웃 (클라우드 연동 및 로컬 데모 모드 모두에서 로그아웃 상태 반영)
   const handleAdminLogout = async () => {
     if (isFirebaseActive()) {
       try {
         const auth = getActiveAuth();
         await signOut(auth);
-        setIsAdminAuthenticated(false);
       } catch (e) {
         console.error(e);
       }
     }
+    setIsAdminAuthenticated(false);
   };
 
   // 교사 로그인 성공 핸들러

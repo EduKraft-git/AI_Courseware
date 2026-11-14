@@ -470,7 +470,24 @@ export const SetupModal: React.FC<SetupModalProps> = ({ isOpen, onComplete }) =>
                     <strong>Firestore DB 생성:</strong> 좌측 <strong>[데이터베이스 및 스토리지]</strong> → <strong>[Firestore]</strong> → <strong>[데이터베이스 만들기]</strong> (위치: Seoul, 프로덕션 모드로 생성)
                   </li>
                   <li>
-                    <strong>보안 규칙 설정:</strong> Firestore 상단 <strong>[규칙]</strong> 탭에서 <code>if false;</code>를 <code>if true;</code>로 수정 후 <strong>[게시]</strong> 클릭 (아래 '추천 보안규칙 복사' 버튼 활용)
+                    <strong>보안 규칙 설정:</strong> Firestore 상단 <strong>[규칙]</strong> 탭에서 <code>if false;</code>를 <code>if true;</code>로 수정 후 <strong>[게시]</strong> 클릭{' '}
+                    <button
+                      type="button"
+                      onClick={handleCopyRules}
+                      style={{
+                        marginLeft: '4px',
+                        padding: '2px 8px',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        borderRadius: '6px',
+                        border: '1px solid #CBD5E1',
+                        backgroundColor: copiedRules ? 'var(--color-point, #064e3b)' : '#FFFFFF',
+                        color: copiedRules ? '#FFFFFF' : '#0F172A',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {copiedRules ? '✓ 복사됨' : '추천 보안규칙 복사'}
+                    </button>
                   </li>
                   <li>
                     <strong>로그인 활성화:</strong> 좌측 <strong>[보안]</strong> → <strong>[Authentication]</strong> → <strong>[시작하기]</strong> → <strong>[이메일/비밀번호]</strong>를 '사용 설정'으로 켜고 <strong>[저장]</strong>

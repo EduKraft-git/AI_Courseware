@@ -3,6 +3,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { getActiveAuth } from '../firebase';
 import { isFirebaseActive } from '../db';
 import { loadAppConfig } from '../config/appConfig';
+import { trackGlobalTeacherLogin } from '../services/analyticsService';
 
 interface AdminLoginProps {
   onLoginSuccess: () => void;
@@ -42,6 +43,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess, onSwitch
       try {
         const auth = getActiveAuth();
         await signInWithEmailAndPassword(auth, email, password);
+        trackGlobalTeacherLogin(email);
         onLoginSuccess();
       } catch (err: any) {
         console.error(err);

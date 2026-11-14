@@ -1,46 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { saveProblem, getProblem, getDailyProblems, getAllClasses } from '../db';
+import { saveProblem, getProblem, getAllClasses } from '../db';
 import { Problem, Question, SchoolClass } from '../types';
 import { CHAPTER_STANDARDS_MAP } from '../constants/mathStandards';
 import { getActiveGeminiApiKey } from '../config/appConfig';
 import { callGemini, parseQuestionsJson } from '../services/gemini';
+import { getKoreanDateInfo } from '../services/analyticsService';
 import { MathText } from './MathText';
+import { InfoTooltip } from './InfoTooltip';
 
 interface AdminCreateProblemProps {
   onBack: () => void;
   initialDate?: string;
   initialProblemId?: string | null; // 수정 모드 진입 시 특정 문제 꾸러미 고유 ID 전달용
 }
-
-// ℹ️ 타이틀 옆 미니 인포메이션 툴팁 팝오버 컴포넌트
-const InfoTooltip: React.FC<{ text: React.ReactNode }> = ({ text }) => {
-  const [isOpen, setIsOpen] = useState(false);
-
-  return (
-    <span 
-      className="info-tooltip-wrapper"
-      onMouseEnter={() => setIsOpen(true)}
-      onMouseLeave={() => setIsOpen(false)}
-    >
-      <button
-        type="button"
-        className="info-tooltip-btn"
-        onClick={(e) => {
-          e.stopPropagation();
-          setIsOpen(!isOpen);
-        }}
-        aria-label="도움말 보기"
-      >
-        ⓘ
-      </button>
-      {isOpen && (
-        <div className="info-tooltip-popover">
-          {text}
-        </div>
-      )}
-    </span>
-  );
-};
 
 export const AdminCreateProblem: React.FC<AdminCreateProblemProps> = ({ onBack, initialDate, initialProblemId }) => {
   const [selectedDate, setSelectedDate] = useState('');
@@ -63,17 +35,10 @@ export const AdminCreateProblem: React.FC<AdminCreateProblemProps> = ({ onBack, 
     if (inspectIndex >= previewQuestions.length) {
       setInspectIndex(Math.max(0, previewQuestions.length - 1));
     }
-  }, [previewQuestions.length]);
-
-  // 한국 시간 기준 YYYY-MM-DD
-  const getTodayString = () => {
-    const now = new Date();
-    const offset = now.getTimezoneOffset() * 60000;
-    return new Date(now.getTime() - offset).toISOString().split('T')[0];
-  };
+  }, [previewQuestions.length, inspectIndex]);
 
   useEffect(() => {
-    setSelectedDate(initialDate || getTodayString());
+    setSelectedDate(initialDate || getKoreanDateInfo().dateStr);
     setProblemId(initialProblemId || null);
   }, [initialDate, initialProblemId]);
 

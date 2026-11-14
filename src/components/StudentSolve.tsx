@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { getProblem, getStudentSubmissions, submitAnswer, markProblemStarted, updateStudentActiveStatus, setStudentOffline } from '../db';
-import { Student, Problem, Question, Submission } from '../types';
+import { Student, Problem, Submission } from '../types';
 import { checkAnswer } from '../utils/mathAnswer';
 import { isFractionAnswer } from '../utils/fraction';
+import { trackGlobalSolve } from '../services/analyticsService';
 import { MathText } from './MathText';
 import { FractionInput } from './FractionInput';
 
@@ -231,6 +232,8 @@ export const StudentSolve: React.FC<StudentSolveProps> = ({
       );
 
       if (isCorrect) {
+        // 정답 해결 시 글로벌 통계 누적 기록
+        trackGlobalSolve(1, student.classId, student.id);
         // 정답일 시 딜레이 없이 즉각 다음 문제로 넘어가게 조율 (버튼 스위칭 및 화면 꿀렁임 제거)
         const updatedSubs = [...submissions];
         const existingIdx = updatedSubs.findIndex(s => s.questionId === currentQuestion.id && s.classId === student.classId);

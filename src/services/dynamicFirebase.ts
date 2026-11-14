@@ -1,4 +1,4 @@
-import { initializeApp, getApps, getApp, deleteApp, FirebaseApp } from 'firebase/app';
+import { initializeApp, getApps, deleteApp, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
 import { getFirestore, Firestore, doc, setDoc, getDoc, deleteDoc } from 'firebase/firestore';
 import { CustomFirebaseConfig, loadAppConfig } from '../config/appConfig';
@@ -7,18 +7,24 @@ let currentApp: FirebaseApp | null = null;
 let currentAuth: Auth | null = null;
 let currentDb: Firestore | null = null;
 
-// Firebase 인스턴스를 초기화하거나 기존 인스턴스를 갱신하는 함수
+// Firebase 인스턴스를 초기화하거나 새 설정에 맞춰 즉시 갱신하는 함수
 export const initFirebaseWithConfig = (config: CustomFirebaseConfig): { app: FirebaseApp; auth: Auth; db: Firestore } => {
   try {
     const existingApps = getApps();
-    if (existingApps.length > 0) {
-      // 기존 앱이 있으면 가져오거나 재초기화
-      currentApp = getApp();
-    } else {
+    // 이미 동일한 프로젝트와 API 키로 초기화된 앱이 있으면 재사용
+    const matchedApp = existingApps.find(
+      (app) => app.options.projectId === config.projectId && app.options.apiKey === config.apiKey
+    );
+
+    if (matchedApp) {
+      currentApp = matchedApp;
+    } else if (existingApps.length === 0) {
       currentApp = initializeApp(config);
+    } else {
+      // 기본 앱이 더미(dummy)이거나 다른 프로젝트인 경우 고유 이름으로 새 앱 인스턴스 생성
+      currentApp = initializeApp(config, `app_${config.projectId}_${Date.now()}`);
     }
   } catch {
-    // 앱 이름 충돌 등의 경우 기본 앱 획득
     currentApp = initializeApp(config, `app_${Date.now()}`);
   }
 

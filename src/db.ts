@@ -9,7 +9,9 @@ import {
   query, 
   where,
   onSnapshot,
-  writeBatch
+  writeBatch,
+  increment,
+  arrayUnion
 } from 'firebase/firestore';
 import { getActiveDb } from './firebase';
 import { loadAppConfig } from './config/appConfig';
@@ -19,11 +21,7 @@ import { Student, Problem, Submission, Attendance, SubmissionAttempt, SchoolClas
 // 환경변수 또는 사용자 커스텀 설정(localStorage)에 유효한 Firebase 설정이 있는지 확인합니다.
 export const isFirebaseActive = (): boolean => {
   const config = loadAppConfig();
-  if (config.firebaseConfig && config.firebaseConfig.apiKey && config.firebaseConfig.apiKey !== 'YOUR_FIREBASE_API_KEY_HERE') {
-    return true;
-  }
-  const envKey = import.meta.env.VITE_FIREBASE_API_KEY;
-  return !!envKey && envKey !== 'YOUR_FIREBASE_API_KEY_HERE';
+  return !!(config.firebaseConfig && config.firebaseConfig.apiKey && config.firebaseConfig.apiKey !== 'YOUR_FIREBASE_API_KEY_HERE');
 };
 
 // 🌟 런타임에 동적으로 변경되는 Firestore DB 인스턴스를 항상 안전하게 참조하는 헬퍼
@@ -225,8 +223,8 @@ export const getDailyProblems = async (date: string, classId?: string): Promise<
       const list: Problem[] = [];
       querySnapshot.forEach((doc) => {
         const data = doc.data() as Omit<Problem, 'id'>;
-        const targetClasses = data.targetClasses || ['1반']; // 기본값 하위호환성 방어
-        if (!classId || targetClasses.includes(classId)) {
+        const isTarget = !classId || !data.targetClasses || data.targetClasses.length === 0 || data.targetClasses.includes(classId);
+        if (isTarget) {
           list.push({ id: doc.id, ...data } as Problem);
         }
       });
@@ -576,32 +574,17 @@ export const submitAnswer = async (
   if (isFirebaseActive()) {
     try {
       const docRef = doc(getDb(), 'submissions', docId);
-      const docSnap = await getDoc(docRef);
-
-      if (docSnap.exists()) {
-        // 기존 문서가 있으면 이력을 업데이트합니다.
-        const currentData = docSnap.data() as Omit<Submission, 'id'>;
-        const newAttempts = currentData.attempts + 1;
-        const updatedHistory = [...currentData.history, newAttempt];
-        
-        await updateDoc(docRef, {
-          attempts: newAttempts,
-          history: updatedHistory,
-          isCompleted: isCorrect ? true : currentData.isCompleted
-        });
-      } else {
-        // 처음 제출하는 문제라면 문서를 생성합니다.
-        await setDoc(docRef, {
-          date,
-          classId,
-          problemId: actualProblemId,
-          studentId,
-          questionId,
-          attempts: 1,
-          history: [newAttempt],
-          isCompleted: isCorrect
-        });
-      }
+      // 사전 읽기(getDoc) 없이 원자적 연산(increment, arrayUnion)으로 1회 쓰기 처리 (동시 제출 경쟁 상태 방지 및 읽기 비용 절감)
+      await setDoc(docRef, {
+        date,
+        classId,
+        problemId: actualProblemId,
+        studentId,
+        questionId,
+        attempts: increment(1),
+        history: arrayUnion(newAttempt),
+        isCompleted: isCorrect
+      }, { merge: true });
       return;
     } catch (e) {
       console.error('Firebase DB 에러', e);
@@ -687,129 +670,6 @@ export const markProblemStarted = async (
     });
     localStorage.setItem('mock_submissions', JSON.stringify(submissions));
   }
-};
-
-// 특정 날짜의 특정 반 모든 제출 내역 조회 (현황판용)
-export const getDailySubmissions = async (date: string, classId: string): Promise<Submission[]> => {
-  if (isFirebaseActive()) {
-    try {
-      const q = query(
-        collection(getDb(), 'submissions'), 
-        where('date', '==', date),
-        where('classId', '==', classId)
-      );
-      const querySnapshot = await getDocs(q);
-      const submissions: Submission[] = [];
-      querySnapshot.forEach((doc) => {
-        submissions.push({ id: doc.id, ...doc.data() } as Submission);
-      });
-      return submissions;
-    } catch (e) {
-      console.error('Firebase DB 에러', e);
-    }
-  }
-
-  // 로컬 스토리지 백업
-  const localData = localStorage.getItem('mock_submissions');
-  const submissions: Submission[] = localData ? JSON.parse(localData) : [];
-  return submissions.filter(s => s.date === date && s.classId === classId);
-};
-
-// 학생의 전체 미완료 학습 날짜 목록 조회
-export const getUnfinishedDates = async (classId: string, studentId: string, today: string): Promise<string[]> => {
-  // 1. 모든 문제 리스트 가져오기
-  let allProblems: Problem[] = [];
-  if (isFirebaseActive()) {
-    try {
-      const querySnapshot = await getDocs(collection(getDb(), 'problems'));
-      querySnapshot.forEach((doc) => {
-        allProblems.push({ id: doc.id, ...doc.data() } as Problem);
-      });
-    } catch (e) {
-      console.error(e);
-    }
-  } else {
-    const localData = localStorage.getItem('mock_problems');
-    allProblems = localData ? JSON.parse(localData) : [];
-  }
-
-  // 오늘 이전의 배포된 문제 날짜들 중 해당 학급(classId) 대상인 날짜만 중복 없이 필터링
-  const pastProblemDates = Array.from(new Set(
-    allProblems
-      .filter(p => p.date < today && (!p.targetClasses || p.targetClasses.length === 0 || p.targetClasses.includes(classId)))
-      .map(p => p.date)
-  ));
-
-  // 2. 학생의 모든 제출 이력 조회
-  let allSubmissions: Submission[] = [];
-  if (isFirebaseActive()) {
-    try {
-      const q = query(
-        collection(getDb(), 'submissions'), 
-        where('classId', '==', classId),
-        where('studentId', '==', studentId)
-      );
-      const querySnapshot = await getDocs(q);
-      querySnapshot.forEach((doc) => {
-        allSubmissions.push({ id: doc.id, ...doc.data() } as Submission);
-      });
-    } catch (e) {
-      console.error(e);
-    }
-  } else {
-    const localData = localStorage.getItem('mock_submissions');
-    allSubmissions = localData ? JSON.parse(localData) : [];
-  }
-
-  // 3. 학생의 출결 기록 조회 (결석일 경우 미완료 목록에서 제외)
-  let attendances: Attendance[] = [];
-  if (isFirebaseActive()) {
-    try {
-      const q = query(
-        collection(getDb(), 'attendance'), 
-        where('classId', '==', classId),
-        where('studentId', '==', studentId)
-      );
-      const querySnapshot = await getDocs(q);
-      querySnapshot.forEach((doc) => {
-        attendances.push({ id: doc.id, ...doc.data() } as Attendance);
-      });
-    } catch (e) {
-      console.error(e);
-    }
-  } else {
-    const localData = localStorage.getItem('mock_attendance');
-    const allAtt = localData ? JSON.parse(localData) : [];
-    attendances = allAtt.filter((a: any) => a.studentId === studentId && a.classId === classId);
-  }
-  const absentDates = attendances
-    .filter(a => a.status !== 'present')
-    .map(a => a.date);
-
-  const unfinishedDates: string[] = [];
-
-  for (const date of pastProblemDates) {
-    // 결석한 날짜는 패스
-    if (absentDates.includes(date)) continue;
-
-    // 해당 날짜의 문제 가져오기
-    const problem = allProblems.find(p => p.date === date);
-    if (!problem) continue;
-
-    const totalQuestions = problem.questions.length;
-    
-    // 해당 날짜에 완료된 문제 개수 계산
-    const completedCount = allSubmissions.filter(
-      s => s.date === date && s.isCompleted && s.classId === classId
-    ).length;
-
-    // 다 풀지 않았으면 미완료 목록에 추가
-    if (completedCount < totalQuestions) {
-      unfinishedDates.push(date);
-    }
-  }
-
-  return unfinishedDates.sort();
 };
 
 // 학생의 전체 미완료 학습 문제 세트 목록 조회 (밀린 학습용)
@@ -959,27 +819,6 @@ export const setStudentOffline = async (classId: string, studentId: string): Pro
     statusList = statusList.filter(s => s.id !== docId);
     localStorage.setItem('mock_online_status', JSON.stringify(statusList));
   }
-};
-
-// 특정 학급 반 전체 온라인 상태 조회
-export const getOnlineStatuses = async (classId: string): Promise<OnlineStatus[]> => {
-  if (isFirebaseActive()) {
-    try {
-      const q = query(collection(getDb(), 'online_status'), where('classId', '==', classId));
-      const querySnapshot = await getDocs(q);
-      const list: OnlineStatus[] = [];
-      querySnapshot.forEach((doc) => {
-        list.push({ id: doc.id, ...doc.data() } as OnlineStatus);
-      });
-      return list;
-    } catch (e) {
-      console.error('Firebase DB 에러 (온라인 조회)', e);
-    }
-  }
-  
-  const localData = localStorage.getItem('mock_online_status');
-  const statusList: OnlineStatus[] = localData ? JSON.parse(localData) : [];
-  return statusList.filter(s => s.classId === classId);
 };
 
 // 전체 배포된 문제 목록 일괄 조회 (누적 통계용)
@@ -1238,34 +1077,75 @@ export const addClass = async (className: string): Promise<void> => {
   }
 };
 
-// 학급 반 이름 수정 시 관련 예하 모든 종속 데이터(학생, 출결, 제출 기록, 문제 배포 대상 목록)를 일괄 이관하는 마이그레이션 함수
+// 학급 반 이름 수정 시 관련 예하 모든 종속 데이터(학생, 출결, 제출 기록, 종합 리포트, 온라인 상태, 문제 배포 대상 목록)와 문서 고유 키(ID)를 일괄 이관하는 마이그레이션 함수
 export const migrateClassData = async (oldName: string, newName: string): Promise<void> => {
   if (isFirebaseActive()) {
     try {
-      // 1. 학생(students) 이관
+      // 1. 학생(students) 문서 ID 재생성 및 이관
       const studentsSnapshot = await getDocs(query(collection(getDb(), 'students'), where('classId', '==', oldName)));
       for (const studentDoc of studentsSnapshot.docs) {
-        await updateDoc(doc(getDb(), 'students', studentDoc.id), { classId: newName });
+        const data = studentDoc.data();
+        const newDocId = `${newName}_${data.id}`;
+        await setDoc(doc(getDb(), 'students', newDocId), { ...data, classId: newName });
+        if (studentDoc.id !== newDocId) {
+          await deleteDoc(studentDoc.ref);
+        }
       }
 
-      // 2. 출결(attendance) 이관
+      // 2. 출결(attendance) 문서 ID 재생성 및 이관
       const attendancesSnapshot = await getDocs(query(collection(getDb(), 'attendance'), where('classId', '==', oldName)));
       for (const attDoc of attendancesSnapshot.docs) {
-        await updateDoc(doc(getDb(), 'attendance', attDoc.id), { classId: newName });
+        const data = attDoc.data();
+        const newDocId = `${data.date}_${newName}_${data.studentId}`;
+        await setDoc(doc(getDb(), 'attendance', newDocId), { ...data, classId: newName });
+        if (attDoc.id !== newDocId) {
+          await deleteDoc(attDoc.ref);
+        }
       }
 
-      // 3. 제출 기록(submissions) 이관
+      // 3. 제출 기록(submissions) 문서 ID 재생성 및 이관
       const submissionsSnapshot = await getDocs(query(collection(getDb(), 'submissions'), where('classId', '==', oldName)));
       for (const subDoc of submissionsSnapshot.docs) {
-        await updateDoc(doc(getDb(), 'submissions', subDoc.id), { classId: newName });
+        const data = subDoc.data();
+        const probId = data.problemId || data.date;
+        const isStarted = data.isStartMarker || data.questionId === 0 || subDoc.id.startsWith('started_');
+        const newDocId = isStarted
+          ? `started_${probId}_${newName}_${data.studentId}`
+          : `${probId}_${newName}_${data.studentId}_${data.questionId}`;
+        await setDoc(doc(getDb(), 'submissions', newDocId), { ...data, classId: newName });
+        if (subDoc.id !== newDocId) {
+          await deleteDoc(subDoc.ref);
+        }
       }
 
-      // 4. 배포된 문제(problems)의 targetClasses 내 구형 이름 변경 이관
+      // 4. 누적 종합 리포트(comprehensive_reports) 문서 ID 재생성 및 이관
+      const reportsSnapshot = await getDocs(query(collection(getDb(), 'comprehensive_reports'), where('classId', '==', oldName)));
+      for (const repDoc of reportsSnapshot.docs) {
+        const data = repDoc.data();
+        const newDocId = `${newName}_${data.studentId}`;
+        await setDoc(doc(getDb(), 'comprehensive_reports', newDocId), { ...data, classId: newName });
+        if (repDoc.id !== newDocId) {
+          await deleteDoc(repDoc.ref);
+        }
+      }
+
+      // 5. 실시간 온라인 상태(online_status) 문서 ID 재생성 및 이관
+      const onlineSnapshot = await getDocs(query(collection(getDb(), 'online_status'), where('classId', '==', oldName)));
+      for (const onDoc of onlineSnapshot.docs) {
+        const data = onDoc.data();
+        const newDocId = `${newName}_${data.studentId}`;
+        await setDoc(doc(getDb(), 'online_status', newDocId), { ...data, classId: newName });
+        if (onDoc.id !== newDocId) {
+          await deleteDoc(onDoc.ref);
+        }
+      }
+
+      // 6. 배포된 문제(problems)의 targetClasses 내 구형 이름 변경 이관
       const problemsSnapshot = await getDocs(collection(getDb(), 'problems'));
       for (const probDoc of problemsSnapshot.docs) {
         const probData = probDoc.data() as Problem;
         if (probData.targetClasses && probData.targetClasses.includes(oldName)) {
-          const updatedTargets = probData.targetClasses.map(c => c === oldName ? newName : c);
+          const updatedTargets = Array.from(new Set(probData.targetClasses.map(c => c === oldName ? newName : c)));
           await updateDoc(doc(getDb(), 'problems', probDoc.id), { targetClasses: updatedTargets });
         }
       }
@@ -1276,7 +1156,7 @@ export const migrateClassData = async (oldName: string, newName: string): Promis
     }
   }
 
-  // 로컬 스토리지 모드 폴백 이관
+  // 로컬 스토리지 모드 폴백 이관 (id 필드까지 함께 갱신)
   // 1. 로컬 학생 이관
   const localSt = localStorage.getItem('mock_students');
   if (localSt) {
@@ -1289,7 +1169,11 @@ export const migrateClassData = async (oldName: string, newName: string): Promis
   const localAtt = localStorage.getItem('mock_attendance');
   if (localAtt) {
     const list: Attendance[] = JSON.parse(localAtt);
-    const updated = list.map(a => a.classId === oldName ? { ...a, classId: newName } : a);
+    const updated = list.map(a => a.classId === oldName ? {
+      ...a,
+      id: `${a.date}_${newName}_${a.studentId}`,
+      classId: newName
+    } : a);
     localStorage.setItem('mock_attendance', JSON.stringify(updated));
   }
 
@@ -1297,11 +1181,46 @@ export const migrateClassData = async (oldName: string, newName: string): Promis
   const localSub = localStorage.getItem('mock_submissions');
   if (localSub) {
     const list: Submission[] = JSON.parse(localSub);
-    const updated = list.map(s => s.classId === oldName ? { ...s, classId: newName } : s);
+    const updated = list.map(s => {
+      if (s.classId !== oldName) return s;
+      const probId = s.problemId || s.date;
+      const isStarted = s.questionId === 0 || String(s.id).startsWith('started_');
+      return {
+        ...s,
+        id: isStarted
+          ? `started_${probId}_${newName}_${s.studentId}`
+          : `${probId}_${newName}_${s.studentId}_${s.questionId}`,
+        classId: newName
+      };
+    });
     localStorage.setItem('mock_submissions', JSON.stringify(updated));
   }
 
-  // 4. 로컬 배포 문제 이관
+  // 4. 로컬 종합 리포트 이관
+  const localReports = localStorage.getItem('mock_comprehensive_reports');
+  if (localReports) {
+    const list: any[] = JSON.parse(localReports);
+    const updated = list.map(r => r.classId === oldName ? {
+      ...r,
+      id: `${newName}_${r.studentId}`,
+      classId: newName
+    } : r);
+    localStorage.setItem('mock_comprehensive_reports', JSON.stringify(updated));
+  }
+
+  // 5. 로컬 온라인 상태 이관
+  const localOnline = localStorage.getItem('mock_online_status');
+  if (localOnline) {
+    const list: OnlineStatus[] = JSON.parse(localOnline);
+    const updated = list.map(o => o.classId === oldName ? {
+      ...o,
+      id: `${newName}_${o.studentId}`,
+      classId: newName
+    } : o);
+    localStorage.setItem('mock_online_status', JSON.stringify(updated));
+  }
+
+  // 6. 로컬 배포 문제 이관
   const localProb = localStorage.getItem('mock_problems');
   if (localProb) {
     const list: Problem[] = JSON.parse(localProb);
@@ -1309,7 +1228,7 @@ export const migrateClassData = async (oldName: string, newName: string): Promis
       if (p.targetClasses && p.targetClasses.includes(oldName)) {
         return {
           ...p,
-          targetClasses: p.targetClasses.map(c => c === oldName ? newName : c)
+          targetClasses: Array.from(new Set(p.targetClasses.map(c => c === oldName ? newName : c)))
         };
       }
       return p;
@@ -1388,12 +1307,30 @@ export const updateClass = async (classId: string, updates: Partial<SchoolClass>
   }
 };
 
-// 학급 반 삭제
-// 학급 반 삭제 (영구 삭제 보장 및 부활 차단)
+// 학급 반 삭제 (영구 삭제 보장, 부활 차단 및 해당 반의 고아 데이터 일괄 정리)
 export const deleteClass = async (classId: string): Promise<void> => {
   if (isFirebaseActive()) {
     try {
       await deleteDoc(doc(getDb(), 'classes', classId));
+
+      // 해당 학급에 속한 종속 컬렉션 문서들 일괄 삭제
+      const collectionsToClean = ['students', 'attendance', 'submissions', 'online_status', 'comprehensive_reports'];
+      for (const colName of collectionsToClean) {
+        const snap = await getDocs(query(collection(getDb(), colName), where('classId', '==', classId)));
+        for (const d of snap.docs) {
+          await deleteDoc(d.ref);
+        }
+      }
+
+      // 문제(problems) 배포 대상 목록에서 삭제된 학급 제거
+      const probSnap = await getDocs(collection(getDb(), 'problems'));
+      for (const probDoc of probSnap.docs) {
+        const probData = probDoc.data() as Problem;
+        if (probData.targetClasses && probData.targetClasses.includes(classId)) {
+          const updatedTargets = probData.targetClasses.filter(c => c !== classId);
+          await updateDoc(probDoc.ref, { targetClasses: updatedTargets });
+        }
+      }
       return;
     } catch (e) {
       console.error('Firebase DB 에러 (학급 삭제)', e);
@@ -1401,10 +1338,29 @@ export const deleteClass = async (classId: string): Promise<void> => {
     }
   }
 
-  // 로컬 폴백 (삭제 상태를 확실히 기억하도록 플래그 갱신)
+  // 로컬 폴백 (삭제 상태를 확실히 기억하도록 플래그 갱신 및 관련 로컬 데이터 일괄 정리)
   const list = await getAllClasses();
   const filtered = list.filter(c => c.id !== classId);
   localStorage.setItem('mock_classes', JSON.stringify(filtered));
   localStorage.setItem('classes_initialized', 'true');
+
+  const localKeys = ['mock_students', 'mock_attendance', 'mock_submissions', 'mock_online_status', 'mock_comprehensive_reports'];
+  for (const key of localKeys) {
+    const raw = localStorage.getItem(key);
+    if (raw) {
+      const items: any[] = JSON.parse(raw);
+      localStorage.setItem(key, JSON.stringify(items.filter(item => item.classId !== classId)));
+    }
+  }
+
+  const localProb = localStorage.getItem('mock_problems');
+  if (localProb) {
+    const probs: Problem[] = JSON.parse(localProb);
+    const updatedProbs = probs.map(p => p.targetClasses ? {
+      ...p,
+      targetClasses: p.targetClasses.filter(c => c !== classId)
+    } : p);
+    localStorage.setItem('mock_problems', JSON.stringify(updatedProbs));
+  }
 };
 

@@ -148,8 +148,8 @@ export const CHAPTER_STANDARDS_MAP: Record<string, Record<string, ChapterStandar
       exampleTypes: '최대공약수/최소공배수 구하기, 실생활 똑같이 나누어 담기(최대공약수), 동시에 출발하기(최소공배수)'
     },
     '[1학기] 3. 규칙과 대응': {
-      coreConcepts: '두 양 사이의 대응 관계(한 양이 변할 때 다른 양이 일정하게 변함), 대응 관계를 표와 $\Box, \triangle$ 기호 식 표현',
-      scopeGuide: '대응 관계를 말로 설명하고, $\Box \times a + b = \triangle$ 형태의 관계식으로 나타내도록 출제하세요.',
+      coreConcepts: '두 양 사이의 대응 관계(한 양이 변할 때 다른 양이 일정하게 변함), 대응 관계를 표와 □, △ 기호 식 표현',
+      scopeGuide: '대응 관계를 말로 설명하고, □ × a + b = △ 형태의 관계식으로 나타내도록 출제하세요.',
       exampleTypes: '대응표에서 빈칸 채우기, 두 양 사이의 관계식 만들기, 몇 번째 도형의 수 구하기'
     },
     '[1학기] 4. 약분과 통분': {

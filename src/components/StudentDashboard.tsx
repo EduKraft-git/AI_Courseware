@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  getDailyProblems, 
   subscribeDailyProblems,
   getDailyAttendance, 
   getStudentSubmissions, 
@@ -13,6 +12,8 @@ import {
 } from '../db';
 import { Student, Problem, Attendance, Submission } from '../types';
 import { useScrollFadeMask } from '../hooks/useScrollFadeMask';
+import { getKoreanDateInfo } from '../services/analyticsService';
+import { InfoTooltip } from './InfoTooltip';
 
 interface StudentDashboardProps {
   student: Student;
@@ -25,38 +26,6 @@ interface ProblemWithStatus extends Problem {
   completedCount: number;
   totalQuestions: number;
 }
-
-// ℹ️ 타이틀 옆 미니 인포메이션 툴팁 팝오버 컴포넌트
-const InfoTooltip: React.FC<{ text: React.ReactNode }> = ({ text }) => {
-  const [isOpen, setIsOpen] = useState(false);
-
-  return (
-    <span 
-      className="info-tooltip-wrapper"
-      onMouseEnter={() => setIsOpen(true)}
-      onMouseLeave={() => setIsOpen(false)}
-    >
-      <button
-        type="button"
-        className="info-tooltip-btn"
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          setIsOpen(!isOpen);
-        }}
-        onBlur={() => setIsOpen(false)}
-        aria-label="안내 도움말"
-      >
-        i
-      </button>
-      {isOpen && (
-        <div className="info-tooltip-popover">
-          {text}
-        </div>
-      )}
-    </span>
-  );
-};
 
 export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   student,
@@ -81,15 +50,8 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   const [calendarAttendances, setCalendarAttendances] = useState<Attendance[]>([]);
   const [isLoadingCalendar, setIsLoadingCalendar] = useState(false);
 
-  // 한국 시간 기준 YYYY-MM-DD 가져오기
-  const getTodayString = () => {
-    const now = new Date();
-    const offset = now.getTimezoneOffset() * 60000;
-    const localISODate = new Date(now.getTime() - offset).toISOString().split('T')[0];
-    return localISODate;
-  };
-
-  const todayStr = getTodayString();
+  // 한국 시간(KST) 기준 YYYY-MM-DD 가져오기
+  const todayStr = getKoreanDateInfo().dateStr;
 
   // 🌟 오늘의 배포 문제 및 출결 실시간 감지 (새 문제 배포 시 0.1초 즉시 화면 반영)
   useEffect(() => {
@@ -192,7 +154,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
         setCalendarSubmissions(subs);
 
         const probs = await getAllProblems();
-        const filteredProbs = probs.filter(p => (p.targetClasses || ['1반']).includes(student.classId));
+        const filteredProbs = probs.filter(p => !p.targetClasses || p.targetClasses.length === 0 || p.targetClasses.includes(student.classId));
         setCalendarProblems(filteredProbs);
       } catch (err) {
         console.error('달력 데이터 로드 오류:', err);
@@ -541,7 +503,8 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                         const dateProblems = calendarProblems.filter(p => p.date === dateStr);
                         
                         const myAtt = calendarAttendances.find(a => a.date === dateStr);
-                        const isAbsentOnDate = myAtt && myAtt.status !== 'present';
+                        const isExemptOnDate = myAtt?.status === 'exempt';
+                        const isAbsentOnDate = !!myAtt && myAtt.status !== 'present' && !isExemptOnDate;
                         const absentLabel = myAtt?.status === 'absent_ill' ? '결석(질병)' : '결석(인정)';
                         
                         let hasProblems = dateProblems.length > 0;
@@ -565,7 +528,11 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                         let statusText = '';
                         let statusColor = 'var(--text-secondary)';
                         
-                        if (isAbsentOnDate) {
+                        if (isExemptOnDate) {
+                          cellBg = 'rgba(5, 150, 105, 0.06)';
+                          statusText = '면제';
+                          statusColor = 'var(--color-success)';
+                        } else if (isAbsentOnDate) {
                           cellBg = '#fffbeb';
                           statusText = absentLabel;
                           statusColor = '#d97706';
@@ -611,12 +578,12 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                             </span>
                             
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', overflow: 'hidden', minWidth: 0, width: '100%' }}>
-                              {isAbsentOnDate ? (
+                              {isExemptOnDate || isAbsentOnDate ? (
                                 <span style={{ 
                                   fontSize: '0.68rem', 
                                   fontWeight: 800, 
                                   color: statusColor,
-                                  backgroundColor: 'rgba(217, 119, 6, 0.08)',
+                                  backgroundColor: isExemptOnDate ? 'rgba(5, 150, 105, 0.1)' : 'rgba(217, 119, 6, 0.08)',
                                   padding: '0.15rem 0.25rem',
                                   borderRadius: '4px',
                                   textAlign: 'center',

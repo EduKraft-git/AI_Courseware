@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
   getStudentSubmissions, 
-  getProblem, 
   getDailyProblems,
   getAllStudentSubmissions,
   saveComprehensiveReport,
@@ -87,7 +86,7 @@ export const AdminAIReport: React.FC<AdminAIReportProps> = ({
     };
 
     loadSubmissions();
-  }, [selectedProblemId, student.id, dailyProblems]);
+  }, [selectedProblemId, student.classId, student.id, dailyProblems]);
 
   // 🌟 3. 종합 분석 모드로 전환될 때 전체 누적 데이터 로드
   useEffect(() => {

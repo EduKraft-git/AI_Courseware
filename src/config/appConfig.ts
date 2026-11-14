@@ -22,8 +22,9 @@ export interface AppConfig {
 
 const STORAGE_KEY = 'ai_courseware_app_config';
 
-// 환경변수(.env)에 유효한 Firebase 키가 존재하는지 확인하는 헬퍼
+// 환경변수(.env)에 유효한 Firebase 키가 존재하는지 확인하는 헬퍼 (단위 테스트 환경에서는 실제 클라우드 DB 오작동 방지를 위해 제외)
 export const hasEnvFirebaseConfig = (): boolean => {
+  if (import.meta.env.MODE === 'test') return false;
   const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
   return !!apiKey && apiKey !== 'YOUR_FIREBASE_API_KEY_HERE';
 };
@@ -74,8 +75,8 @@ export const loadAppConfig = (): AppConfig => {
     }
   }
 
-  const geminiApiKey = (isEnvGeminiValid ? envGeminiKey : savedConfig.geminiApiKey) || '';
-  const firebaseConfig = envFbConfig || savedConfig.firebaseConfig || null;
+  const geminiApiKey = savedConfig.geminiApiKey || (isEnvGeminiValid ? envGeminiKey : '') || '';
+  const firebaseConfig = savedConfig.firebaseConfig || envFbConfig || null;
   const isConfigured = !!(geminiApiKey && firebaseConfig && firebaseConfig.apiKey);
 
   return {
